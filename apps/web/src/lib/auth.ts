@@ -14,6 +14,7 @@ export function adminAuthorized(req: NextRequest): boolean {
 /**
  * 巡检入口（/api/monitor）鉴权：
  * - Vercel Cron 配置了 CRON_SECRET 时会自动携带 Authorization: Bearer <CRON_SECRET>
+ * - 外部定时服务（如 cron-job.org）可通过查询参数 ?key=<CRON_SECRET> 调用
  * - 页面手动触发时可携带 x-admin-token
  */
 export function monitorAuthorized(req: NextRequest): boolean {
@@ -22,6 +23,7 @@ export function monitorAuthorized(req: NextRequest): boolean {
     const auth = req.headers.get("authorization");
     if (auth === `Bearer ${secret}`) return true;
     if (req.headers.get("x-cron-secret") === secret) return true;
+    if (req.nextUrl.searchParams.get("key") === secret) return true;
     return adminAuthorized(req);
   }
   return adminAuthorized(req);

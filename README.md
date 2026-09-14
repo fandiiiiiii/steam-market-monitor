@@ -7,22 +7,25 @@
 - ✅ 降价提醒（最低售价降幅达标）与最低价被秒提醒
 - ✅ 通用自定义：任意 Steam 游戏物品（内置永劫无间 appid 1203220 搜索与谪星示例一键添加）
 - ✅ 企业微信 markdown 卡片推送 + 冷却合并 + 免打扰时段
-- ✅ **云端部署（Vercel 免费层）**：每分钟自动巡检，电脑关机也能推送
+- ✅ **云端部署（Vercel 免费层 + cron-job.org 免费定时）**：每分钟自动巡检，电脑关机也能推送
 - ✅ 本地模式（Node 进程）与全链路冒烟/E2E 测试
 
 ## 架构
 
 ```
-┌───────────────────────┐    每分钟 Cron      ┌──────────────────────────────┐
-│  Vercel（免费 Hobby）   │ ─────────────────→ │  /api/monitor                 │
-│  ├─ Next.js 管理页面    │                    │  ├─ SteamClient（限流+重试）   │
-│  ├─ API 路由           │                    │  │   histogram / search/render │
-│  └─ Vercel Cron        │                    │  ├─ 监控引擎 diff（去重/阈值） │
-└───────────┬───────────┘                    │  └─ 企业微信 webhook 推送      │
-            │ Vercel KV（状态存储）            └──────────────┬───────────────┘
+┌───────────────────────┐   每分钟外部定时唤醒    ┌──────────────────────────────┐
+│  Vercel（免费 Hobby）   │ ←── cron-job.org ───── │  /api/monitor                 │
+│  ├─ Next.js 管理页面    │   （?key=CRON_SECRET） │  ├─ SteamClient（限流+重试）   │
+│  ├─ API 路由           │                        │  │   histogram / search/render │
+│  └─ KV 状态存储         │                        │  ├─ 监控引擎 diff（去重/阈值） │
+└───────────┬───────────┘                        │  └─ 企业微信 webhook 推送      │
+            │ Vercel KV（状态存储）                └──────────────┬───────────────┘
             │                                                ▼
      配置/事件/去重状态                                  企业微信群（qyapi）
 ```
+
+> 说明：Vercel 免费版定时任务现仅支持“每天一次”，因此每分钟巡检由免费的
+> [cron-job.org](https://cron-job.org) 定时唤醒 `/api/monitor` 实现（详见部署文档）。
 
 - `packages/core`：Steam 客户端、监控引擎、巡检 runner、通知器、存储抽象（纯逻辑，无框架依赖）
 - `apps/web`：Next.js 管理页面 + API 路由 + Vercel 部署配置（Cron / KV）
