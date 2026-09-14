@@ -99,6 +99,10 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
       health.itemsChecked += 1;
       try {
         const snap = await steam.snapshot(item);
+        // 搜索接口对匿名请求返回美元价格，按汇率换算为人民币（阈值/告警统一人民币口径）
+        if (snap.sellPrice != null) {
+          snap.sellPrice = Math.round(snap.sellPrice * settings.usdToCnyRate * 100) / 100;
+        }
         if (snap.nameId && item.nameId !== snap.nameId) {
           item.nameId = snap.nameId;
           await store.saveItems(items);

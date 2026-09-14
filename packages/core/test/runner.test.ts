@@ -35,6 +35,7 @@ const SETTINGS = {
   globalCooldownSec: 60,
   quietHoursStart: null,
   quietHoursEnd: null,
+  usdToCnyRate: 1,
 };
 
 function snapAt(sellCount: number, sellPrice: number, at: number): ItemSnapshot {

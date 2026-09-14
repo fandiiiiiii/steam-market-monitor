@@ -136,6 +136,7 @@ async function main(): Promise<void> {
       globalCooldownSec: 60,
       quietHoursStart: null,
       quietHoursEnd: null,
+      usdToCnyRate: 1,
     });
     const steam = new SteamClient({ baseUrl: `http://127.0.0.1:${portOf(steamSrv)}`, minIntervalMs: 0 });
     const notifier = new Notifier({ baseUrl: `http://127.0.0.1:${portOf(wecomSrv)}` });

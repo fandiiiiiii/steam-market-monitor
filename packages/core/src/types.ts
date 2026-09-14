@@ -45,9 +45,11 @@ export interface Settings {
   pollEnabled: boolean;
   /** 全局事件冷却秒数（与物品级冷却取较大值） */
   globalCooldownSec: number;
-  /** 免打扰时段起 "HH:mm"（服务器时区），空 = 关闭 */
+  /** 免打扰时段起 "HH:mm"（按北京时间），空 = 关闭 */
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
+  /** 美元→人民币汇率：Steam 搜索接口对匿名请求返回美元价格，按此汇率换算为人民币显示与告警 */
+  usdToCnyRate: number;
 }
 
 /** 单条出售单（保留类型定义，当前监控使用聚合数量/价格，不再逐条解析） */

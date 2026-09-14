@@ -16,11 +16,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if (!item) return NextResponse.json({ error: "物品不存在" }, { status: 404 });
   try {
     const snap = await steam.snapshot(item);
+    const settings = await store.getSettings();
+    // 与 runner 保持一致：搜索价格是美元，按汇率换算为人民币
+    const sellPrice =
+      snap.sellPrice != null ? Math.round(snap.sellPrice * settings.usdToCnyRate * 100) / 100 : null;
     return NextResponse.json({
       snapshot: {
         histogram: snap.histogram,
         sellCount: snap.sellCount,
-        sellPrice: snap.sellPrice,
+        sellPrice,
         fetchedAt: snap.fetchedAt,
         nameId: snap.nameId,
       },

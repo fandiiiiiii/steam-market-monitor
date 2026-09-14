@@ -38,6 +38,7 @@ export interface SettingsView {
   globalCooldownSec: number;
   quietHoursStart: string;
   quietHoursEnd: string;
+  usdToCnyRate: number;
   webhookKeySet: boolean;
   webhookKeyMasked: string;
 }

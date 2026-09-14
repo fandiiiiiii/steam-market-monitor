@@ -153,16 +153,32 @@ export class SteamClient {
     };
   }
 
-  /** 市场搜索（新版结构化接口）。query 支持中文名；返回按物品去重后的结果 */
+  /** 市场搜索（新版结构化接口）。query 支持中文名；返回按物品去重后的结果（最多两页 20 条） */
   async searchItems(appId: number, query: string, start = 0, count = 100): Promise<ItemSearchResult[]> {
     const q = encodeURIComponent(query.trim());
     const qPart = q ? `query=${q}&` : "";
-    const json = await this.http(
-      `/market/search/render/?${qPart}start=${start}&count=${count}&search_descriptions=0&appid=${appId}&currency=${this.currency}&country=${this.country}&l=${this.language}&norender=1`,
-      "json",
-    );
-    if (!json || json.success !== true) return [];
-    return parseSearchResultsJson(json.results);
+    const fetchPage = async (s: number) => {
+      const json = await this.http(
+        `/market/search/render/?${qPart}start=${s}&count=${count}&search_descriptions=0&appid=${appId}&currency=${this.currency}&country=${this.country}&l=${this.language}&norender=1`,
+        "json",
+      );
+      if (!json || json.success !== true) return null;
+      return { total: Number(json.total_count), results: parseSearchResultsJson(json.results) };
+    };
+    const first = await fetchPage(start);
+    if (!first) return [];
+    const merged = [...first.results];
+    // Steam 每页固定返回 10 条：结果还有剩余时再取一页（最多 20 条，足够搜索选物）
+    if (first.results.length >= 10 && (Number.isFinite(first.total) ? first.total : 0) > 10) {
+      const second = await fetchPage(start + 10);
+      if (second) merged.push(...second.results);
+    }
+    const seen = new Set<string>();
+    return merged.filter((r) => {
+      if (seen.has(r.marketHashName)) return false;
+      seen.add(r.marketHashName);
+      return true;
+    });
   }
 
   /** 按市场名精确查询单个物品的在售数量与最低价（无该物品结果时返回 null） */

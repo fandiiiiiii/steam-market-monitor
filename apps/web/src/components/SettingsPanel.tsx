@@ -18,6 +18,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
     globalCooldownSec: settings.globalCooldownSec,
     quietHoursStart: settings.quietHoursStart,
     quietHoursEnd: settings.quietHoursEnd,
+    usdToCnyRate: settings.usdToCnyRate ?? 7.2,
     webhookKey: "",
   });
   const [adminToken, setAdminTokenState] = useState("");
@@ -32,6 +33,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
       globalCooldownSec: settings.globalCooldownSec,
       quietHoursStart: settings.quietHoursStart,
       quietHoursEnd: settings.quietHoursEnd,
+      usdToCnyRate: settings.usdToCnyRate ?? 7.2,
       webhookKey: "",
     });
     setAdminTokenState(getAdminToken());
@@ -48,6 +50,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
         globalCooldownSec: Number(form.globalCooldownSec),
         quietHoursStart: form.quietHoursStart || null,
         quietHoursEnd: form.quietHoursEnd || null,
+        usdToCnyRate: Number(form.usdToCnyRate),
         webhookKey: form.webhookKey,
       });
       setForm((f) => ({ ...f, webhookKey: "" }));
@@ -119,7 +122,19 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
           <span className="hint">与物品级冷却取较大值生效</span>
         </div>
         <div className="field">
-          <label>免打扰开始（HH:mm，服务器时区）</label>
+          <label>美元→人民币汇率（Steam 匿名接口返回美元价，按此换算显示与告警）</label>
+          <input
+            type="number"
+            step="0.01"
+            min={0.1}
+            max={100}
+            value={form.usdToCnyRate}
+            onChange={(e) => setForm({ ...form, usdToCnyRate: Number(e.target.value) })}
+          />
+          <span className="hint">默认 7.2，可按当日汇率调整；价格阈值请按人民币填写</span>
+        </div>
+        <div className="field">
+          <label>免打扰开始（HH:mm）</label>
           <input
             type="time"
             value={form.quietHoursStart}
