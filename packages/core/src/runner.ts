@@ -105,10 +105,11 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
       health.itemsChecked += 1;
       try {
         const snap = await steam.snapshot(item);
-        // 价格币种策略：带 Cookie 时接口返回账号原生币种（与目标一致则直接用）；
-        // 匿名/美元时按自动汇率换算为目标币种。
+        // 价格币种策略：带 Cookie 时接口返回账号原生币种（如 HKD），原样使用并按该币种符号显示；
+        // 匿名/美元时按自动汇率换算为设置的目标币种。
         const pc = snap.sellPriceCurrency ?? "USD";
-        if (snap.sellPrice != null && pc !== settings.currency && pc === "USD") {
+        const itemSymbol = pc !== "USD" ? currencySymbol(pc) : symbol;
+        if (snap.sellPrice != null && pc === "USD") {
           snap.sellPrice = Math.round(snap.sellPrice * rate * 100) / 100;
         }
         // 柱状图若为美元（price_prefix=$），同样换算
@@ -147,7 +148,7 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
         }
 
         if (sendable.length > 0) {
-          const msg = buildItemMessage(item, sendable, now(), symbol);
+          const msg = buildItemMessage(item, sendable, now(), itemSymbol);
           let pushed = false;
           if (settings.webhookKey) {
             try {
@@ -159,8 +160,8 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
           roundEvents.push(
             ...sendable.map((e) => ({
               ...e,
-              title: e.title.replaceAll("¥", symbol),
-              detail: e.detail.replaceAll("¥", symbol),
+              title: e.title.replaceAll("¥", itemSymbol),
+              detail: e.detail.replaceAll("¥", itemSymbol),
               pushed,
             })),
           );

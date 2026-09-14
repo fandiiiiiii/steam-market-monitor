@@ -36,6 +36,7 @@ export function ItemDetail({ item, symbol = "¥", onSaved, onDeleted }: Props) {
     cooldownSec: item.cooldownSec,
   });
   const [snapshot, setSnapshot] = useState<SnapshotView | null>(null);
+  const [snapCurrency, setSnapCurrency] = useState<string | undefined>(undefined);
   const [snapLoading, setSnapLoading] = useState(false);
   const [snapError, setSnapError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -48,8 +49,9 @@ export function ItemDetail({ item, symbol = "¥", onSaved, onDeleted }: Props) {
     setSnapLoading(true);
     setSnapError(null);
     try {
-      const r = await apiGet<{ snapshot: SnapshotView }>(`/api/items/${item.id}/snapshot`);
+      const r = await apiGet<{ snapshot: SnapshotView; currencySymbol?: string }>(`/api/items/${item.id}/snapshot`);
       setSnapshot(r.snapshot);
+      setSnapCurrency(r.currencySymbol);
     } catch (e) {
       setSnapError(e instanceof Error ? e.message : String(e));
       setSnapshot((cur) => cur ?? EMPTY_SNAP);
@@ -122,7 +124,7 @@ export function ItemDetail({ item, symbol = "¥", onSaved, onDeleted }: Props) {
         error={snapError}
         onRefresh={loadSnapshot}
         marketUrl={marketUrl}
-        symbol={symbol}
+        symbol={snapCurrency ?? symbol}
       />
 
       <h3 style={{ fontSize: 14, marginTop: 20 }}>监控设置</h3>

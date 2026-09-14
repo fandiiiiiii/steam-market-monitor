@@ -18,18 +18,18 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     await applySettingsToSteam();
     const snap = await steam.snapshot(item);
     const settings = await store.getSettings();
-    const symbol = currencySymbol(settings.currency);
-    // 与 runner 一致：仅当原始币种为美元时按自动汇率换算
-    const rate = await getUsdRate(store, settings.currency);
+    // 与 runner 一致：带 Cookie 时用响应原生币种显示；仅美元时按自动汇率换算
     const pc = snap.sellPriceCurrency ?? "USD";
+    const outSymbol = pc !== "USD" ? currencySymbol(pc) : currencySymbol(settings.currency);
+    const rate = await getUsdRate(store, settings.currency);
     const conv = (n: number | null) =>
-      n == null ? n : pc !== settings.currency && pc === "USD" ? Math.round(n * rate * 100) / 100 : n;
+      n == null ? n : pc === "USD" ? Math.round(n * rate * 100) / 100 : n;
     if (snap.histogram && snap.histogram.pricePrefix === "$") {
       snap.histogram.lowestSellOrder = conv(snap.histogram.lowestSellOrder);
       snap.histogram.highestBuyOrder = conv(snap.histogram.highestBuyOrder);
       snap.histogram.sellGraph = snap.histogram.sellGraph.map((p) => ({ ...p, price: conv(p.price) ?? 0 }));
       snap.histogram.buyGraph = snap.histogram.buyGraph.map((p) => ({ ...p, price: conv(p.price) ?? 0 }));
-      snap.histogram.pricePrefix = symbol;
+      snap.histogram.pricePrefix = outSymbol;
     }
     return NextResponse.json({
       snapshot: {
@@ -39,8 +39,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
         fetchedAt: snap.fetchedAt,
         nameId: snap.nameId,
       },
-      currencySymbol: symbol,
-      currency: settings.currency,
+      currencySymbol: outSymbol,
+      currency: pc !== "USD" ? pc : settings.currency,
     });
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 502 });
