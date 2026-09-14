@@ -113,5 +113,41 @@ export async function GET(req: NextRequest) {
     out.histogramByHash = { error: e instanceof Error ? e.message : String(e) };
   }
 
+  // 4) 用 classid 请求柱状图（搜索接口能拿到 classid，若可用则无需 nameid）
+  const classid = req.nextUrl.searchParams.get("classid") ?? "9002204435";
+  for (const [label, keyName] of [
+    ["histogramByClassid", "classid"],
+    ["histogramByItemId", "item_id"],
+    ["histogramByNameidLike", "item_nameid"],
+  ] as const) {
+    try {
+      const r = await fetch(
+        `https://steamcommunity.com/market/itemordershistogram?country=CN&language=schinese&currency=23&${keyName}=${encodeURIComponent(classid)}&two_factor=0`,
+        {
+          headers: { ...baseHeaders, "x-requested-with": "XMLHttpRequest", accept: "application/json, text/plain, */*" },
+          signal: AbortSignal.timeout(20000),
+        },
+      );
+      const t = await r.text();
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(t);
+      } catch {
+        parsed = null;
+      }
+      const obj = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+      out[label] = {
+        status: r.status,
+        isJson: parsed != null,
+        success: obj?.success ?? null,
+        buyOrderCount: obj?.buy_order_count ?? null,
+        highestBuyOrder: obj?.highest_buy_order ?? null,
+        rawHead: t.slice(0, 400),
+      };
+    } catch (e) {
+      out[label] = { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   return NextResponse.json(out, { headers: { "Cache-Control": "no-store" } });
 }
