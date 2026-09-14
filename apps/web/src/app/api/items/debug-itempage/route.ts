@@ -48,8 +48,8 @@ export async function GET(req: NextRequest) {
       ordersOccurrences: (html.match(/orders/gi) ?? []).length,
       dingGouOccurrences: (html.match(/订购/g) ?? []).length,
       listingRowOccurrences: (html.match(/listing_\d+/g) ?? []).length,
-      dingGouHits: (html.match(/.{120}订购.{200}/g) ?? []).slice(0, 4),
-      ordersHits: (html.match(/.{120}orders.{200}/gi) ?? []).slice(0, 5),
+      dingGouHits: (html.match(/.{120}订购.{1000}/g) ?? []).slice(0, 3),
+      ordersHits: (html.match(/.{120}orders.{600}/gi) ?? []).slice(0, 5),
     };
   } catch (e) {
     out.page = { error: e instanceof Error ? e.message : String(e) };
