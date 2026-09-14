@@ -272,24 +272,19 @@ export class SteamClient {
   }
 
   /**
-   * 拉取物品完整快照：搜索接口（在售数量+最低价，主数据）+ 订单数据（求购，可选）。
-   * @param opts.withPage 是否抓取物品页解析订购数据（较重，约 340KB，建议低频使用）
+   * 拉取物品完整快照：优先从物品页解析（与市场页显示完全一致：在售数量/最低售价/订购数据），
+   * 物品页不可用时回退到搜索接口与柱状图接口。
+   * @param opts.withPage 是否抓取物品页（约 340KB，建议对监控物品始终开启）
    */
   async snapshot(
     item: Pick<MonitorItem, "appId" | "marketHashName" | "nameId">,
     opts?: { withPage?: boolean },
   ): Promise<ItemSnapshot & { nameId?: number | null }> {
-    let exact:
-      | { found: true; sellCount: number; sellPrice: number | null; sellPriceCurrency: string | null }
-      | { found: false }
-      | null = null;
-    try {
-      exact = await this.searchItemExact(item.appId, item.marketHashName);
-    } catch (e) {
-      this.log(`精确查询失败（数据视为未知）：${errMsg(e)}`);
-    }
-
-    const [nameId] = await Promise.all([
+    const [exact, nameId] = await Promise.all([
+      this.searchItemExact(item.appId, item.marketHashName).catch((e) => {
+        this.log(`精确查询失败（数据视为未知）：${errMsg(e)}`);
+        return null;
+      }),
       item.nameId
         ? Promise.resolve(item.nameId)
         : this.resolveNameId(item.appId, item.marketHashName).catch(() => null),
@@ -317,12 +312,24 @@ export class SteamClient {
       throw new Error(`未获取到该物品的任何市场数据（请确认物品名正确）：${item.marketHashName}`);
     }
 
+    const prefixToCurrency = (p: string): string => (p === "HK$" ? "HKD" : p === "$" ? "USD" : "CNY");
+
     return {
       histogram,
-      // found=false → 该物品当前无在售（0 件）；null → 接口失败，数据未知
-      sellCount: exact === null ? null : exact.found ? exact.sellCount : 0,
-      sellPrice: exact !== null && exact.found ? exact.sellPrice : null,
-      sellPriceCurrency: exact !== null && exact.found ? exact.sellPriceCurrency : null,
+      // 页面数据优先（与市场页显示一致）；回退搜索接口
+      sellCount: histogram
+        ? histogram.sellOrderCount
+        : exact === null
+          ? null
+          : exact.found
+            ? exact.sellCount
+            : 0,
+      sellPrice: histogram ? histogram.lowestSellOrder : exact !== null && exact.found ? exact.sellPrice : null,
+      sellPriceCurrency: histogram
+        ? prefixToCurrency(histogram.pricePrefix)
+        : exact !== null && exact.found
+          ? exact.sellPriceCurrency
+          : null,
       fetchedAt: Date.now(),
       nameId,
     };
