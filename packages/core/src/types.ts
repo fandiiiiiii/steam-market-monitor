@@ -107,6 +107,8 @@ export interface EngineState {
   buyGraph: HistogramPoint[];
   buyFingerprint: string | null;
   lastSeenAt: number;
+  /** 稳定指纹（不含时间戳字段），runner 用于判断是否需要写回存储 */
+  fp?: string | null;
 }
 
 /** 全局健康信息 */

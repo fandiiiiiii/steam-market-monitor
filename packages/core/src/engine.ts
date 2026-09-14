@@ -38,6 +38,21 @@ function pruneSeen(seen: Record<string, { price: number; at: number }>): void {
   }
 }
 
+/** 状态稳定指纹（排除时间戳字段），用于判断是否需要写回存储 */
+export function stateFingerprint(state: EngineState): string {
+  const entries = Object.entries(state.seen)
+    .map(([id, v]) => [id, v.price] as const)
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return JSON.stringify([
+    state.initialized,
+    entries,
+    state.lastMinPrice,
+    state.lastMinListingId,
+    state.highestBuy,
+    state.buyFingerprint,
+  ]);
+}
+
 /**
  * 对比新旧快照，产出检测事件。
  * - 首次运行只做基线记录，不产生事件；

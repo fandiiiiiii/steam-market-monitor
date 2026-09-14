@@ -1,5 +1,5 @@
 import type { DetectEvent, EventRecord, EventType, MonitorItem, RoundSummary, Settings } from "./types.ts";
-import { detectChanges } from "./engine.ts";
+import { detectChanges, stateFingerprint } from "./engine.ts";
 import type { Notifier } from "./notifier.ts";
 import type { SteamClient } from "./steam/client.ts";
 import type { Store } from "./storage/store.ts";
@@ -69,7 +69,7 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
 
   const startedAt = now();
   try {
-    const settings = await store.getSettings();
+    const { items: allItems, settings } = await store.getMeta();
     const health = await store.getHealth();
     health.lastRunAt = startedAt;
     health.roundsRun += 1;
@@ -91,7 +91,7 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
       return summary;
     }
 
-    const items = (await store.getItems()).filter((i) => i.enabled);
+    const items = allItems.filter((i) => i.enabled);
     const roundEvents: Omit<EventRecord, "id" | "ts">[] = [];
 
     for (const item of items) {
@@ -105,7 +105,12 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
         }
         const prev = await store.getState(item.id);
         const { events, next } = detectChanges(prev, snap, item);
-        await store.saveState(item.id, next);
+        // 仅当状态实质变化时写回（节省免费存储额度：平稳期每轮 0 次写）
+        const fp = stateFingerprint(next);
+        if (fp !== (prev?.fp ?? null)) {
+          next.fp = fp;
+          await store.saveState(item.id, next);
+        }
 
         const sendable: DetectEvent[] = [];
         for (const e of events) {

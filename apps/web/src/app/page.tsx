@@ -14,7 +14,7 @@ import { apiGet, apiSend } from "@/lib/client";
 export const dynamic = "force-dynamic";
 
 export interface HealthInfo {
-  backend: "vercel-kv" | "file";
+  backend: "upstash-redis" | "file";
   serverTime: number;
   pollEnabled: boolean;
   webhookKeySet: boolean;
@@ -168,7 +168,7 @@ export default function Page() {
         <h1>
           🛡️ Steam 市场监控
           {statusBadge}
-          {health && <span className="badge info">存储：{health.backend === "vercel-kv" ? "Vercel KV" : "本地文件"}</span>}
+          {health && <span className="badge info">存储：{health.backend === "upstash-redis" ? "Upstash Redis" : "本地文件"}</span>}
           {health && (
             <span className="badge">
               物品 {health.itemsEnabled}/{health.itemsTotal}

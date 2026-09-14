@@ -8,8 +8,11 @@ import type {
 import { genId, nowTs } from "../util.ts";
 import type { KVStorage } from "./kv.ts";
 
-const KEY_ITEMS = "items";
-const KEY_SETTINGS = "settings";
+/**
+ * 物品与设置合并存储在同一个 key（meta）下：巡检热路径每次只读一次。
+ * 事件日志 / 引擎状态 / 冷却标记 / 健康 / 锁分别独立存储。
+ */
+const KEY_META = "meta";
 const KEY_HEALTH = "health";
 const KEY_EVENTS = "events";
 const EVENTS_CAP = 500;
@@ -43,6 +46,11 @@ function jsonParse<T>(s: string | null, fallback: T): T {
   }
 }
 
+interface Meta {
+  items?: MonitorItem[];
+  settings?: Partial<Settings>;
+}
+
 /** 数据仓储：把业务对象序列化到 KVStorage，键名统一管理 */
 export class Store {
   private readonly kv: KVStorage;
@@ -51,24 +59,36 @@ export class Store {
     this.kv = kv;
   }
 
+  // ---- meta（物品 + 设置，单键读取）----
+  async getMeta(): Promise<{ items: MonitorItem[]; settings: Settings }> {
+    const m = jsonParse<Meta>(await this.kv.get(KEY_META), {});
+    const items = Array.isArray(m.items) ? m.items : [];
+    const settings: Settings = { ...DEFAULT_SETTINGS, ...(m.settings ?? {}) };
+    return { items, settings };
+  }
+
+  async saveMeta(items: MonitorItem[], settings: Settings): Promise<void> {
+    await this.kv.set(KEY_META, JSON.stringify({ items, settings }));
+  }
+
   // ---- 物品 ----
   async getItems(): Promise<MonitorItem[]> {
-    const list = jsonParse<MonitorItem[]>(await this.kv.get(KEY_ITEMS), []);
-    return Array.isArray(list) ? list : [];
+    return (await this.getMeta()).items;
   }
 
   async saveItems(items: MonitorItem[]): Promise<void> {
-    await this.kv.set(KEY_ITEMS, JSON.stringify(items));
+    const meta = await this.getMeta();
+    await this.saveMeta(items, meta.settings);
   }
 
   // ---- 设置 ----
   async getSettings(): Promise<Settings> {
-    const s = jsonParse<Partial<Settings>>(await this.kv.get(KEY_SETTINGS), {});
-    return { ...DEFAULT_SETTINGS, ...s };
+    return (await this.getMeta()).settings;
   }
 
   async saveSettings(s: Settings): Promise<void> {
-    await this.kv.set(KEY_SETTINGS, JSON.stringify(s));
+    const meta = await this.getMeta();
+    await this.saveMeta(meta.items, s);
   }
 
   // ---- 引擎状态 ----
@@ -115,7 +135,7 @@ export class Store {
     await this.kv.set(KEY_HEALTH, JSON.stringify(h));
   }
 
-  // ---- 分布式锁（防止 Cron 重入 / 并发执行）----
+  // ---- 分布式锁（防止并发执行）----
   async acquireLock(name: string, ttlSec: number): Promise<boolean> {
     return this.kv.set(`lock:${name}`, String(nowTs()), { nx: true, ex: ttlSec });
   }

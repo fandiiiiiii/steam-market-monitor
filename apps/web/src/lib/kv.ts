@@ -1,14 +1,19 @@
 import path from "node:path";
-import { createClient } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
 import type { KVStorage } from "@steam-monitor/core";
 import { FileKV } from "@steam-monitor/core";
 
 /**
- * Vercel KV 适配器（部署到 Vercel 并关联 KV 后由环境变量驱动；
- * 本地开发没有 KV 变量时自动回退到工作区 data/db.json 文件存储）。
+ * Upstash Redis 适配器（Vercel Marketplace 的 Redis 集成；Vercel KV 已于 2024/12 停用）。
+ * 兼容注入变量：UPSTASH_REDIS_REST_URL/TOKEN（Upstash 集成）或 KV_REST_API_URL/TOKEN（旧 KV）。
+ * 本地开发没有这些变量时回退到工作区 data/db.json 文件存储。
  */
-class VercelKVStorage implements KVStorage {
-  constructor(private readonly client: ReturnType<typeof createClient>) {}
+class UpstashStorage implements KVStorage {
+  private readonly client: Redis;
+
+  constructor(url: string, token: string) {
+    this.client = new Redis({ url, token });
+  }
 
   async get(key: string): Promise<string | null> {
     return this.client.get<string>(key);
@@ -33,11 +38,11 @@ class VercelKVStorage implements KVStorage {
   }
 }
 
-export function makeKV(): { kv: KVStorage; backend: "vercel-kv" | "file" } {
-  const { KV_REST_API_URL, KV_REST_API_TOKEN } = process.env;
-  if (KV_REST_API_URL && KV_REST_API_TOKEN) {
-    const client = createClient({ url: KV_REST_API_URL, token: KV_REST_API_TOKEN });
-    return { kv: new VercelKVStorage(client), backend: "vercel-kv" };
+export function makeKV(): { kv: KVStorage; backend: "upstash-redis" | "file" } {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (url && token) {
+    return { kv: new UpstashStorage(url, token), backend: "upstash-redis" };
   }
   const file = path.join(process.cwd(), "data", "db.json");
   return { kv: new FileKV(file), backend: "file" };

@@ -42,13 +42,19 @@ git push -u origin main
    - Install / Build 命令保持默认（pnpm 会自动识别 workspace）
 3. 点 **Deploy** 完成首次部署
 
-## 4. 创建并关联 Vercel KV
+## 4. 连接 Redis 存储（Vercel Marketplace → Upstash）
 
-1. 项目页 → **Storage** → **Create Database** → 选择 **KV (Redis)** → Create → **Connect** 到本项目
-2. 连接后 Vercel 会自动注入 `KV_REST_API_URL` / `KV_REST_API_TOKEN` 等环境变量（无需手动复制）
-3. 若检测到未自动部署，手动 **Redeploy** 一次使变量生效
+> 说明：Vercel 自带的 KV 服务已于 2024 年 12 月停用，现在统一走 Marketplace 里的 Redis（Upstash），免费额度对本应用够用。
 
-> 未关联 KV 时应用会回退到本地文件存储（serverless 下不可持久），所以一定要完成本步。
+1. Vercel 项目页 → **Storage** 标签 → **Create Database**（创建数据库）
+2. 选择 **Redis（Upstash）** → 按提示 **Create / Connect**
+   - 首次使用会跳到 Upstash 的授权页面，用 **Continue with GitHub** 登录并同意即可（免费档不用填信用卡）
+3. 创建并 Connect 后，Vercel 会自动给项目注入 `UPSTASH_REDIS_REST_URL` 与 `UPSTASH_REDIS_REST_TOKEN` 两个环境变量（无需手动复制）
+4. 返回项目 → 若提示重新部署，点 **Redeploy** 一次让变量生效
+
+> 未连接 Redis 时应用会回退到本地文件存储（serverless 下重启即丢失），所以一定要完成本步。
+> 免费额度说明：Upstash 免费档约 1 万次命令/天。应用已做写入优化（市场无变化时每轮几乎不写），
+> 1 分钟间隔 + ≤3 个物品完全够用；物品更多时把 cron-job.org 的间隔改为 2 分钟即可。
 
 ## 5. 配置环境变量
 
@@ -84,7 +90,7 @@ Vercel 免费版不能每分钟定时，这一步用 cron-job.org 当“闹钟�
 
 ## 6. 验证
 
-1. 打开 `https://<你的项目>.vercel.app/api/health`，应返回 `{"backend":"vercel-kv", ...}`
+1. 打开 `https://<你的项目>.vercel.app/api/health`，应返回 `{"backend":"upstash-redis", ...}`
 2. 打开首页 → 添加物品（如“谪星·信手斩龙（国际服）”）→ 右侧会显示实时行情快照
 3. “全局设置”→ 填 webhook key（若未配环境变量）→ **发送测试消息** → 群里应收到测试卡片
 4. 点 **⚡ 立即巡检**：第一轮建立基线（不推送）；之后市场出现新上架/求购变化即推送

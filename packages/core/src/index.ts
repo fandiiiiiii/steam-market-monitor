@@ -3,6 +3,7 @@ export * from "./util.ts";
 export * from "./engine.ts";
 export * from "./runner.ts";
 export * from "./notifier.ts";
+export * from "./notifier.ts";
 export * from "./templates.ts";
 export { SteamClient, type SteamClientOptions } from "./steam/client.ts";
 export {
