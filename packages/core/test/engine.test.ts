@@ -150,6 +150,17 @@ describe("detectChanges", () => {
     assert.ok(e!.detail.includes("900"));
   });
 
+  it("检测最高求购价下降", () => {
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
+    // 最高求购价 800 → 700（并移除 800 价位）
+    const h2 = hist({ buyGraph: [{ price: 700, quantity: 1 }], highestBuyOrder: 700 });
+    const { events } = detectChanges(prev, snap(10, 1000, h2), item());
+    const e = events.find((x) => x.type === "buy_order_change");
+    assert.ok(e);
+    assert.ok(e!.detail.includes("最高求购价降至"));
+    assert.ok(e!.detail.includes("700"));
+  });
+
   it("minBuyPrice 过滤求购提醒", () => {
     const i = item({ minBuyPrice: 850 });
     const prev = detectChanges(null, snap(10, 1000, hist()), i).next;

@@ -35,7 +35,7 @@ export function stateFingerprint(state: EngineState): string {
  * - 新上架：在售数量增加（受 maxPrice 过滤，以当前最低价判断）；
  * - 降价：最低售价下降且降幅达标（达标时优先报降价，不重复报新上架）；
  * - 被秒：在售数量减少且最低价回升（原最低价大概率被买走）；
- * - 求购变化：柱状图指纹变化（新增价位 / 数量增加 / 最高求购价上升，受 minBuyPrice 过滤）。
+ * - 求购变化：柱状图指纹变化（新增价位 / 数量增加 / 最高求购价上升或下降，受 minBuyPrice 过滤）。
  */
 export function detectChanges(
   prev: EngineState | null,
@@ -142,6 +142,8 @@ export function detectChanges(
       const hb = snap.histogram.highestBuyOrder;
       if (hb != null && prev.highestBuy != null && hb > prev.highestBuy) {
         parts.push(`最高求购价升至 ¥${fmtPrice(hb)}`);
+      } else if (hb != null && prev.highestBuy != null && hb < prev.highestBuy && (minB == null || hb >= minB)) {
+        parts.push(`最高求购价降至 ¥${fmtPrice(hb)}`);
       }
       if (parts.length > 0) {
         events.push({
