@@ -115,6 +115,15 @@ describe("parseItemPageOrders（物品页内嵌订单数据）", () => {
     assert.deepEqual(o!.buyOrders, [{ price: 1234.56, quantity: 3 }]);
   });
 
+  it("零在售时最低售价置空（页面占位值 23 分不算真实价格）", () => {
+    const html = `<script>{"state":{"data":{"amtMaxBuyOrder":598410,"amtMinSellOrder":23,"eCurrency":23,"cBuyOrders":5,"cSellOrders":0,"rgCompactBuyOrders":[598410,1],"rgCompactSellOrders":[]}}}</script>`;
+    const o = parseItemPageOrders(html);
+    assert.ok(o);
+    assert.equal(o!.sellCount, 0);
+    assert.equal(o!.lowestSell, null);
+    assert.equal(o!.highestBuy, 5984.1);
+  });
+
   it("无数据时返回 null", () => {
     assert.equal(parseItemPageOrders("<html>nothing</html>"), null);
   });

@@ -262,8 +262,9 @@ export class SteamClient {
     return {
       sellOrderCount: o.sellCount,
       buyOrderCount: o.buyCount,
-      lowestSellOrder: o.lowestSell,
-      highestBuyOrder: o.highestBuy,
+      // 零在售/零订购时置空，避免页面占位值（如 0.23）被当成真实价格
+      lowestSellOrder: o.sellCount > 0 ? o.lowestSell : null,
+      highestBuyOrder: o.buyCount > 0 ? o.highestBuy : null,
       sellGraph: o.sellOrders,
       buyGraph: o.buyOrders,
       pricePrefix: symbolOfCurrencyCode(currencyCodeOf(o.currency)),

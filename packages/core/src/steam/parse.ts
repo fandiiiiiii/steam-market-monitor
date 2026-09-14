@@ -62,11 +62,14 @@ export function parseItemPageOrders(html: string): ItemPageOrders | null {
   const sellOrders = arr(/rgCompactSellOrders[^\[]*\[([0-9,\s]*)\]/);
 
   if (amtMax == null && cBuy == null && buyOrders.length === 0) return null;
+  const sellCount = cSell ?? (sellOrders.length > 0 ? sellOrders.reduce((a, p) => a + p.quantity, 0) : 0);
+  const buyCount = cBuy ?? (buyOrders.length > 0 ? buyOrders.reduce((a, p) => a + p.quantity, 0) : 0);
   return {
-    buyCount: cBuy ?? 0,
-    sellCount: cSell ?? 0,
-    highestBuy: amtMax != null ? amtMax / 100 : null,
-    lowestSell: amtMin != null ? amtMin / 100 : null,
+    buyCount,
+    sellCount,
+    // 零在售/零订购时，页面里的 amt 值是占位符（如 23 分），必须置空
+    highestBuy: buyCount > 0 && amtMax != null ? amtMax / 100 : null,
+    lowestSell: sellCount > 0 && amtMin != null ? amtMin / 100 : null,
     currency: cur ?? 23,
     buyOrders,
     sellOrders,
