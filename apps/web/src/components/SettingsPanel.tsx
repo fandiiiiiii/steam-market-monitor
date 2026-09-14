@@ -73,7 +73,17 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
     try {
       const body = mode === "event" ? { mode: "event", ...(form.webhookKey ? { key: form.webhookKey } : {}) } : form.webhookKey ? { key: form.webhookKey } : {};
       await apiSend<{ ok: boolean }>("POST", "/api/notify/test", body);
-      setMsg(mode === "event" ? "模拟告警已发送，请到企业微信群查看（内容和真实告警一致）" : "测试消息已发送，请到企业微信群查看");
+      // 测试成功后自动把输入框里的 key 保存到设置（避免只测试未保存导致巡检不推送）
+      if (form.webhookKey) {
+        await apiSend("PUT", "/api/settings", { webhookKey: form.webhookKey });
+        setForm((f) => ({ ...f, webhookKey: "" }));
+        await onSaved();
+      }
+      setMsg(
+        (mode === "event" ? "模拟告警已发送" : "测试消息已发送") +
+          (form.webhookKey ? "，webhook key 已自动保存" : "") +
+          "，请到企业微信群查看",
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
