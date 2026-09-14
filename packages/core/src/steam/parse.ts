@@ -1,4 +1,77 @@
-import type { SellListing } from "../types.ts";
+import type { HistogramPoint, SellListing } from "../types.ts";
+
+/** 从物品页 HTML 中解析出的订单数据（新市场 UI 把数据内嵌在页面 JSON 中） */
+export interface ItemPageOrders {
+  buyCount: number;
+  sellCount: number;
+  highestBuy: number | null;
+  lowestSell: number | null;
+  currency: number;
+  buyOrders: HistogramPoint[];
+  sellOrders: HistogramPoint[];
+}
+
+const CURRENCY_CODE_BY_ID: Record<number, string> = {
+  1: "USD",
+  23: "CNY",
+  29: "HKD",
+};
+
+export function currencyCodeOf(id: number): string {
+  return CURRENCY_CODE_BY_ID[id] ?? "USD";
+}
+
+export function symbolOfCurrencyCode(code: string): string {
+  if (code === "HKD") return "HK$";
+  if (code === "USD") return "$";
+  return "¥";
+}
+
+/**
+ * 解析物品页内嵌的订单 JSON：
+ * - amtMaxBuyOrder / amtMinSellOrder：最高订购价 / 最低出售价（分）
+ * - cBuyOrders / cSellOrders：订购单 / 出售单数量
+ * - rgCompactBuyOrders / rgCompactSellOrders：扁平数组 [价格(分),数量,价格,数量,...]
+ * 注意：金额单位为"分"，这里统一换算为主币种单位。
+ */
+export function parseItemPageOrders(html: string): ItemPageOrders | null {
+  const num = (re: RegExp): number | null => {
+    const m = html.match(re);
+    return m ? Number(m[1]) : null;
+  };
+  const amtMax = num(/amtMaxBuyOrder[^0-9]*(\d+)/);
+  const amtMin = num(/amtMinSellOrder[^0-9]*(\d+)/);
+  const cBuy = num(/cBuyOrders[^0-9]*(\d+)/);
+  const cSell = num(/cSellOrders[^0-9]*(\d+)/);
+  const cur = num(/eCurrency[^0-9]*(\d+)/);
+
+  const arr = (re: RegExp): HistogramPoint[] => {
+    const m = html.match(re);
+    if (!m || !m[1]) return [];
+    const nums = m[1]
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n));
+    const pts: HistogramPoint[] = [];
+    for (let i = 0; i + 1 < nums.length; i += 2) {
+      if (nums[i + 1] > 0) pts.push({ price: nums[i] / 100, quantity: nums[i + 1] });
+    }
+    return pts;
+  };
+  const buyOrders = arr(/rgCompactBuyOrders[^\[]*\[([0-9,\s]*)\]/);
+  const sellOrders = arr(/rgCompactSellOrders[^\[]*\[([0-9,\s]*)\]/);
+
+  if (amtMax == null && cBuy == null && buyOrders.length === 0) return null;
+  return {
+    buyCount: cBuy ?? 0,
+    sellCount: cSell ?? 0,
+    highestBuy: amtMax != null ? amtMax / 100 : null,
+    lowestSell: amtMin != null ? amtMin / 100 : null,
+    currency: cur ?? 23,
+    buyOrders,
+    sellOrders,
+  };
+}
 
 /**
  * 解析 Steam 价格字符串，如 "¥ 1,234.56"、"起价 ¥ 0.03"、"$0.03"。

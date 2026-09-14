@@ -16,8 +16,11 @@ export {
   parseSellRows,
   splitListingBlocks,
   extractNameId,
+  parseItemPageOrders,
+  currencyCodeOf,
+  symbolOfCurrencyCode,
 } from "./steam/parse.ts";
-export type { ItemSearchResult, SteamSearchResultEntry } from "./steam/parse.ts";
+export type { ItemSearchResult, SteamSearchResultEntry, ItemPageOrders } from "./steam/parse.ts";
 export { type KVStorage } from "./storage/kv.ts";
 export { MemoryKV } from "./storage/memory.ts";
 export { FileKV } from "./storage/file.ts";

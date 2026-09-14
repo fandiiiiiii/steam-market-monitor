@@ -1,4 +1,4 @@
-import type { DetectEvent, EventRecord, EventType, MonitorItem, RoundSummary, Settings } from "./types.ts";
+import type { DetectEvent, EventRecord, EventType, Histogram, MonitorItem, RoundSummary, Settings } from "./types.ts";
 import { detectChanges, stateFingerprint } from "./engine.ts";
 import { getUsdRate } from "./fx.ts";
 import type { Notifier } from "./notifier.ts";
@@ -104,7 +104,17 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
       summary.itemsChecked += 1;
       health.itemsChecked += 1;
       try {
-        const snap = await steam.snapshot(item);
+        // 求购数据（订购）来自物品页解析（较重），每 5 分钟抓取一次并缓存
+        let cachedBuy: { at: number; histogram: Histogram } | null = null;
+        if (item.watchBuy) {
+          const c = await store.getRawJson<{ at: number; histogram: Histogram }>(`buypage:${item.id}`);
+          if (c && c.histogram && Date.now() - c.at < 5 * 60 * 1000) cachedBuy = c;
+        }
+        const snap = await steam.snapshot(item, { withPage: item.watchBuy && !cachedBuy });
+        if (snap.histogram && item.watchBuy && !cachedBuy) {
+          await store.setRawJson(`buypage:${item.id}`, { at: Date.now(), histogram: snap.histogram });
+        }
+        if (!snap.histogram && cachedBuy) snap.histogram = cachedBuy.histogram;
         // 价格币种策略：带 Cookie 时接口返回账号原生币种（如 HKD），原样使用并按该币种符号显示；
         // 匿名/美元时按自动汇率换算为设置的目标币种。
         const pc = snap.sellPriceCurrency ?? "USD";

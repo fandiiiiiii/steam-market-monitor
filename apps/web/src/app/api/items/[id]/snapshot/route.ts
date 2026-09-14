@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if (!item) return NextResponse.json({ error: "物品不存在" }, { status: 404 });
   try {
     await applySettingsToSteam();
-    const snap = await steam.snapshot(item);
+    const snap = await steam.snapshot(item, { withPage: true });
     const settings = await store.getSettings();
     // 与 runner 一致：带 Cookie 时用响应原生币种显示；仅美元时按自动汇率换算
     const pc = snap.sellPriceCurrency ?? "USD";

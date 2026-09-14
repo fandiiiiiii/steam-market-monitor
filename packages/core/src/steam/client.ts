@@ -4,8 +4,11 @@ import { errMsg, sleep } from "../util.ts";
 import {
   type ItemSearchResult,
   extractNameId,
+  parseItemPageOrders,
   parseMarketUrl,
   parseSearchResultsJson,
+  symbolOfCurrencyCode,
+  currencyCodeOf,
 } from "./parse.ts";
 
 export interface SteamClientOptions {
@@ -251,12 +254,29 @@ export class SteamClient {
     });
   }
 
+  /** 从物品页 HTML 解析订单数据（订购/出售），等价于柱状图数据（需要登录 Cookie 才有订购数据） */
+  async getOrdersFromPage(appId: number, marketHashName: string): Promise<Histogram | null> {
+    const html: string = await this.http(this.itemPagePath(appId, marketHashName), "text");
+    const o = parseItemPageOrders(html);
+    if (!o) return null;
+    return {
+      sellOrderCount: o.sellCount,
+      buyOrderCount: o.buyCount,
+      lowestSellOrder: o.lowestSell,
+      highestBuyOrder: o.highestBuy,
+      sellGraph: o.sellOrders,
+      buyGraph: o.buyOrders,
+      pricePrefix: symbolOfCurrencyCode(currencyCodeOf(o.currency)),
+    };
+  }
+
   /**
-   * 拉取物品完整快照：搜索接口（在售数量+最低价，主数据）+ 柱状图（求购，可选）。
-   * 两个来源各自容错，互不阻塞。
+   * 拉取物品完整快照：搜索接口（在售数量+最低价，主数据）+ 订单数据（求购，可选）。
+   * @param opts.withPage 是否抓取物品页解析订购数据（较重，约 340KB，建议低频使用）
    */
   async snapshot(
     item: Pick<MonitorItem, "appId" | "marketHashName" | "nameId">,
+    opts?: { withPage?: boolean },
   ): Promise<ItemSnapshot & { nameId?: number | null }> {
     let exact:
       | { found: true; sellCount: number; sellPrice: number | null; sellPriceCurrency: string | null }
@@ -275,7 +295,15 @@ export class SteamClient {
     ]);
 
     let histogram: Histogram | null = null;
-    if (nameId) {
+    if (opts?.withPage) {
+      try {
+        histogram = await this.getOrdersFromPage(item.appId, item.marketHashName);
+        if (histogram) this.log("已从物品页解析订单数据");
+      } catch (e) {
+        this.log(`物品页订单解析失败：${errMsg(e)}`);
+      }
+    }
+    if (!histogram && nameId) {
       try {
         histogram = await this.getHistogram(item.appId, nameId);
       } catch (e) {

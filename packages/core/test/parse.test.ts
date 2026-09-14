@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   extractNameId,
   parseCurrencyCode,
+  parseItemPageOrders,
   parseMarketUrl,
   parsePriceString,
   parseSearchResults,
@@ -85,6 +86,37 @@ describe("parseSearchResultsJson（新版结构化搜索接口）", () => {
   it("非数组输入返回空", () => {
     assert.deepEqual(parseSearchResultsJson(null), []);
     assert.deepEqual(parseSearchResultsJson({}), []);
+  });
+});
+
+describe("parseItemPageOrders（物品页内嵌订单数据）", () => {
+  it("解析订购/出售数据并换算价格单位", () => {
+    const html = `<script>window.SSR.reactQueryState = {"state":{"data":{"amtMaxBuyOrder":598410,"amtMinSellOrder":700000,"eCurrency":23,"cBuyOrders":159,"cSellOrders":11,"rgCompactBuyOrders":[598410,1,564213,1,563310,2],"rgCompactSellOrders":[700000,1,708614,1]}, "dataUpdatedAt":1}};</script>`;
+    const o = parseItemPageOrders(html);
+    assert.ok(o);
+    assert.equal(o!.buyCount, 159);
+    assert.equal(o!.sellCount, 11);
+    assert.equal(o!.highestBuy, 5984.1);
+    assert.equal(o!.lowestSell, 7000);
+    assert.equal(o!.currency, 23);
+    assert.deepEqual(o!.buyOrders, [
+      { price: 5984.1, quantity: 1 },
+      { price: 5642.13, quantity: 1 },
+      { price: 5633.1, quantity: 2 },
+    ]);
+    assert.deepEqual(o!.sellOrders.slice(0, 1), [{ price: 7000, quantity: 1 }]);
+  });
+
+  it("带转义的 HTML 也能解析", () => {
+    const html = `\\\"state\\\":{\\\"data\\\":{\\\"amtMaxBuyOrder\\\":123456,\\\"rgCompactBuyOrders\\\":[123456,3]}}`;
+    const o = parseItemPageOrders(html);
+    assert.ok(o);
+    assert.equal(o!.highestBuy, 1234.56);
+    assert.deepEqual(o!.buyOrders, [{ price: 1234.56, quantity: 3 }]);
+  });
+
+  it("无数据时返回 null", () => {
+    assert.equal(parseItemPageOrders("<html>nothing</html>"), null);
   });
 });
 
