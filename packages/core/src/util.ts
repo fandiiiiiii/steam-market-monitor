@@ -23,7 +23,7 @@ export function fmtPrice(n: number): string {
  */
 export function normalizeWebhookKey(input: string): string {
   const s = input.trim();
-  const m = s.match(/key=([0-9a-zA-Z\-]{20,})/);
+  const m = s.match(/key=([0-9a-zA-Z\-]{8,})/);
   if (m) return m[1];
   return s;
 }
