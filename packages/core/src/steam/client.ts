@@ -291,9 +291,9 @@ export class SteamClient {
     return {
       histogram,
       // found=false → 该物品当前无在售（0 件）；null → 接口失败，数据未知
-      sellCount: exact ? (found ? exact.sellCount : 0) : null,
-      sellPrice: exact && found ? exact.sellPrice : null,
-      sellPriceCurrency: exact && found ? exact.sellPriceCurrency : null,
+      sellCount: exact === null ? null : exact.found ? exact.sellCount : 0,
+      sellPrice: exact !== null && exact.found ? exact.sellPrice : null,
+      sellPriceCurrency: exact !== null && exact.found ? exact.sellPriceCurrency : null,
       fetchedAt: Date.now(),
       nameId,
     };
