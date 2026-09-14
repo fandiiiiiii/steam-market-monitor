@@ -44,7 +44,9 @@ describe("parseCurrencyCode", () => {
     assert.equal(parseCurrencyCode("$210.94 USD"), "USD");
     assert.equal(parseCurrencyCode("HK$7,281.49 HKD"), "HKD");
     assert.equal(parseCurrencyCode("¥1,234.56 CNY"), "CNY");
-    assert.equal(parseCurrencyCode("$1.23"), null);
+    assert.equal(parseCurrencyCode("$1.23"), "USD");
+    assert.equal(parseCurrencyCode("HK$7,000.00"), "HKD");
+    assert.equal(parseCurrencyCode("¥7000"), "CNY");
     assert.equal(parseCurrencyCode(undefined), null);
   });
 });
