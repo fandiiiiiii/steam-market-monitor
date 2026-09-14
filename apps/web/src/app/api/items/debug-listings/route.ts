@@ -6,14 +6,14 @@ export const revalidate = 0;
 export const maxDuration = 30;
 
 /**
- * 临时调试接口：原样返回 Steam 市场搜索接口的响应结构（用于校准解析器）。
- * 用法：/api/items/debug-search?appid=1203220&q=Star （q 留空则不带 query 参数）
+ * 临时调试接口：原样返回物品页"加载更多"接口（render）的响应结构。
+ * 用法：/api/items/debug-listings?appid=1203220&hash=Star%20-%20Dragon's%20Bane(Non-CN)
  */
 export async function GET(req: NextRequest) {
   const appId = Number(req.nextUrl.searchParams.get("appid") ?? 1203220);
-  const q = req.nextUrl.searchParams.get("q") ?? "";
-  const queryPart = q.trim() ? `query=${encodeURIComponent(q.trim())}&` : "";
-  const url = `https://steamcommunity.com/market/search/render/?${queryPart}start=0&count=100&search_descriptions=0&appid=${appId}&currency=23&l=schinese&norender=1`;
+  const hash = req.nextUrl.searchParams.get("hash") ?? "";
+  if (!hash) return NextResponse.json({ error: "缺少 hash 参数" }, { status: 400 });
+  const url = `https://steamcommunity.com/market/listings/${appId}/${encodeURIComponent(hash)}/render/?start=0&count=100&currency=23&language=schinese&format=json`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -32,15 +32,13 @@ export async function GET(req: NextRequest) {
       parsed = null;
     }
     const obj = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-    const results = Array.isArray(obj?.results) ? (obj!.results as unknown[]) : [];
     return NextResponse.json(
       {
         status: res.status,
         topLevelKeys: obj ? Object.keys(obj) : [],
+        success: obj?.success ?? null,
         totalCount: obj?.total_count ?? null,
-        resultsCount: results.length,
-        firstResult: results[0] ?? null,
-        rawHead: text.slice(0, 4000),
+        rawHead: text.slice(0, 6000),
         rawLength: text.length,
       },
       { headers: { "Cache-Control": "no-store" } },
