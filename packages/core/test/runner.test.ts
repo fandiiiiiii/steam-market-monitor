@@ -107,6 +107,23 @@ describe("runRound", () => {
     assert.equal(calls.length, 2);
   });
 
+  it("免打扰时段按北京时间计算（不受服务器时区影响）", async () => {
+    const store = new Store(new MemoryKV());
+    await store.saveItems([item()]);
+    await store.saveSettings({
+      ...SETTINGS,
+      quietHoursStart: "23:00",
+      quietHoursEnd: "08:00",
+    });
+    const steam = { snapshot: async () => snapAt([["a", 1000]], 1000) };
+    const { send } = makeSend();
+    // 用 UTC 时间构造“北京时间 23:30”（= UTC 15:30），验证按北京时间进入免打扰
+    const utc = Date.UTC(2026, 0, 1, 15, 30, 0);
+    const r = await runRound({ store, steam, notifier: { send }, now: () => utc });
+    assert.equal(r.skipped, true);
+    assert.equal(r.skipReason, "处于免打扰时段");
+  });
+
   it("pollEnabled=false 时跳过且不调用接口", async () => {
     const store = new Store(new MemoryKV());
     await store.saveItems([item()]);

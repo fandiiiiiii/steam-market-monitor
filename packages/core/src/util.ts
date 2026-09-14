@@ -25,6 +25,19 @@ export function fmtTime(ts: number): string {
   return s.replace(/\//g, "-");
 }
 
+/** 取指定时区下的 {h, m}（用于免打扰时段判断，避免服务器时区造成偏移） */
+export function timePartsInZone(d: Date, timeZone = DEFAULT_TIME_ZONE): { h: number; m: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(d);
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return { h, m };
+}
+
 export function marketUrl(appId: number, marketHashName: string): string {
   return `https://steamcommunity.com/market/listings/${appId}/${encodeURIComponent(marketHashName)}`;
 }

@@ -4,7 +4,7 @@ import type { Notifier } from "./notifier.ts";
 import type { SteamClient } from "./steam/client.ts";
 import type { Store } from "./storage/store.ts";
 import { buildItemMessage, buildSystemMessage } from "./templates.ts";
-import { errMsg, nowTs } from "./util.ts";
+import { errMsg, nowTs, timePartsInZone } from "./util.ts";
 
 export interface RunnerDeps {
   store: Store;
@@ -32,7 +32,7 @@ function effectiveCooldown(item: MonitorItem, settings: Settings, type: EventTyp
   return Math.max(base, TYPE_COOLDOWN_SEC[type] ?? 0);
 }
 
-/** 免打扰时段判断（服务器本地时间） */
+/** 免打扰时段判断（固定按目标时区计算，默认北京时间） */
 function inQuietHours(settings: Settings, d: Date): boolean {
   const { quietHoursStart, quietHoursEnd } = settings;
   if (!quietHoursStart || !quietHoursEnd) return false;
@@ -40,7 +40,8 @@ function inQuietHours(settings: Settings, d: Date): boolean {
     const [h, m] = t.split(":").map(Number);
     return h * 60 + (m || 0);
   };
-  const nowMin = d.getHours() * 60 + d.getMinutes();
+  const { h, m } = timePartsInZone(d);
+  const nowMin = h * 60 + m;
   const s = toMin(quietHoursStart);
   const e = toMin(quietHoursEnd);
   if (s < e) return nowMin >= s && nowMin < e;

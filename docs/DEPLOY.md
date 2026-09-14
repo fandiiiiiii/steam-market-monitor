@@ -57,7 +57,8 @@ git push -u origin main
 | `CRON_SECRET` | 是 | 随机长字符串（如 `openssl rand -hex 24` 生成）。Vercel Cron 调用 `/api/monitor` 时自动携带该鉴权头 |
 | `ADMIN_TOKEN` | 建议 | 管理页面写操作口令；设置后在页面“全局设置 → 安全”里填同一个值，防止他人改你的监控配置 |
 | `WECOM_WEBHOOK_KEY` | 可选 | 第 1 步拿到的 key（也可以不配环境变量，直接在管理页“全局设置”里填） |
-| `TZ` | 可选 | `Asia/Shanghai`（消息时间显示时区） |
+
+> ⚠️ **不要添加 `TZ` 变量**：`TZ` 是 Vercel 保留变量名，添加会报 "Environment variable TZ is invalid"。消息时间固定按北京时间显示，无需设置。
 
 添加后 **Redeploy**。
 

@@ -129,7 +129,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
         <div className="field">
           <label>免打扰结束（HH:mm）</label>
           <input type="time" value={form.quietHoursEnd} onChange={(e) => setForm({ ...form, quietHoursEnd: e.target.value })} />
-          <span className="hint">两端均留空则关闭；支持跨天（如 23:00 ~ 08:00）</span>
+          <span className="hint">按北京时间计算；两端均留空则关闭；支持跨天（如 23:00 ~ 08:00）</span>
         </div>
       </div>
 
