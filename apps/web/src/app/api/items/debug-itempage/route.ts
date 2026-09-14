@@ -45,10 +45,36 @@ export async function GET(req: NextRequest) {
       loadOrderSpread: loadOrder ? Number(loadOrder[1]) : null,
       nameidOccurrences: (html.match(/nameid/gi) ?? []).length,
       buyOrderOccurrences: (html.match(/buy_order/gi) ?? []).length,
+      ordersOccurrences: (html.match(/orders/gi) ?? []).length,
+      zhQiuGouOccurrences: (html.match(/求购/g) ?? []).length,
       listingRowOccurrences: (html.match(/listing_\d+/g) ?? []).length,
+      zhHits: (html.match(/.{80}求购.{80}/g) ?? []).slice(0, 3),
+      ordersHits: (html.match(/.{80}orders.{80}/gi) ?? []).slice(0, 5),
     };
   } catch (e) {
     out.page = { error: e instanceof Error ? e.message : String(e) };
+  }
+
+  // 1.5) 移动版页面（旧版 SSR 可能还带 nameid）
+  try {
+    const r = await fetch(
+      `https://steamcommunity.com/market/listings/${appId}/${encodeURIComponent(hash)}?l=schinese&country=CN&mobile=1`,
+      {
+        headers: baseHeaders,
+        signal: AbortSignal.timeout(20000),
+      },
+    );
+    const html = await r.text();
+    const loadOrder = html.match(/Market_LoadOrderSpread\(\s*(\d+)\s*\)/);
+    out.mobilePage = {
+      status: r.status,
+      htmlLength: html.length,
+      loadOrderSpread: loadOrder ? Number(loadOrder[1]) : null,
+      zhQiuGouOccurrences: (html.match(/求购/g) ?? []).length,
+      buyOrderOccurrences: (html.match(/buy_order/gi) ?? []).length,
+    };
+  } catch (e) {
+    out.mobilePage = { error: e instanceof Error ? e.message : String(e) };
   }
 
   // 2) render 接口（旧"加载更多"接口，带 XHR 请求头 + 各种参数组合）
