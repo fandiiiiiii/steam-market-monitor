@@ -44,10 +44,10 @@ export async function GET(req: NextRequest) {
     out.page = { error: e instanceof Error ? e.message : String(e) };
   }
 
-  // 2) render 接口（旧"加载更多"接口，各种参数组合）
+  // 2) render 接口（旧"加载更多"接口，带 XHR 请求头 + 各种参数组合）
   for (const [label, params] of [
-    ["norender1", "start=0&count=10&language=schinese&currency=23&norender=1"],
-    ["formatjson", "start=0&count=10&language=schinese&currency=23&format=json"],
+    ["renderNorenderXhr", "start=0&count=10&language=schinese&currency=23&norender=1"],
+    ["renderFormatJsonXhr", "start=0&count=10&language=schinese&currency=23&format=json"],
   ] as const) {
     try {
       const r = await fetch(
@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
           headers: {
             accept: "application/json, text/plain, */*",
             "accept-language": "zh-CN,zh;q=0.9",
+            "x-requested-with": "XMLHttpRequest",
             "user-agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
           },
@@ -82,6 +83,39 @@ export async function GET(req: NextRequest) {
     } catch (e) {
       out[label] = { error: e instanceof Error ? e.message : String(e) };
     }
+  }
+
+  // 3) 按物品名直接请求柱状图（替代 nameid 的尝试）
+  try {
+    const r = await fetch(
+      `https://steamcommunity.com/market/itemordershistogram?country=CN&language=schinese&currency=23&market_hash_name=${encodeURIComponent(hash)}&two_factor=0`,
+      {
+        headers: {
+          accept: "application/json, text/plain, */*",
+          "accept-language": "zh-CN,zh;q=0.9",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        },
+        signal: AbortSignal.timeout(20000),
+      },
+    );
+    const t = await r.text();
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(t);
+    } catch {
+      parsed = null;
+    }
+    const obj = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    out.histogramByHash = {
+      status: r.status,
+      isJson: parsed != null,
+      success: obj?.success ?? null,
+      rawHead: t.slice(0, 1200),
+    };
+  } catch (e) {
+    out.histogramByHash = { error: e instanceof Error ? e.message : String(e) };
   }
 
   return NextResponse.json(out, { headers: { "Cache-Control": "no-store" } });

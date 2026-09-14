@@ -17,6 +17,16 @@ export function fmtPrice(n: number): string {
   return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  CNY: "¥",
+  HKD: "HK$",
+  USD: "$",
+};
+
+export function currencySymbol(currency: string): string {
+  return CURRENCY_SYMBOLS[currency] ?? "¥";
+}
+
 const DEFAULT_TIME_ZONE = process.env.TZ || "Asia/Shanghai";
 
 /** 服务器时间按目标时区格式化（默认 Asia/Shanghai） */

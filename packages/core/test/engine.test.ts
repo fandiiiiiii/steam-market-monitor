@@ -53,6 +53,7 @@ function hist(overrides: Partial<Histogram> = {}): Histogram {
       { price: 800, quantity: 2 },
       { price: 700, quantity: 1 },
     ],
+    pricePrefix: "¥",
     ...overrides,
   };
 }

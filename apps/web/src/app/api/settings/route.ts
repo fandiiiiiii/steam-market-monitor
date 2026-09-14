@@ -22,7 +22,8 @@ export async function GET() {
       globalCooldownSec: s.globalCooldownSec,
       quietHoursStart: s.quietHoursStart ?? "",
       quietHoursEnd: s.quietHoursEnd ?? "",
-      usdToCnyRate: s.usdToCnyRate ?? 7.2,
+      currency: s.currency ?? "CNY",
+      usdRate: s.usdRate ?? 7.2,
       webhookKeySet: !!s.webhookKey,
       webhookKeyMasked: maskKey(s.webhookKey),
     },
@@ -58,12 +59,15 @@ export async function PUT(req: NextRequest) {
       next[f] = v || null;
     }
   }
-  if (body?.usdToCnyRate !== undefined) {
-    const n = Number(body.usdToCnyRate);
-    if (!Number.isFinite(n) || n < 0.1 || n > 100) {
-      return NextResponse.json({ error: "usdToCnyRate 需在 0.1~100 之间" }, { status: 400 });
+  if (body?.usdRate !== undefined) {
+    const n = Number(body.usdRate);
+    if (!Number.isFinite(n) || n < 0.1 || n > 1000) {
+      return NextResponse.json({ error: "usdRate 需在 0.1~1000 之间" }, { status: 400 });
     }
-    next.usdToCnyRate = n;
+    next.usdRate = n;
+  }
+  if (typeof body?.currency === "string" && ["CNY", "HKD", "USD"].includes(body.currency)) {
+    next.currency = body.currency as Settings["currency"];
   }
   // webhookKey：留空表示不修改；传值则覆盖
   if (typeof body?.webhookKey === "string" && body.webhookKey.trim()) {
@@ -79,7 +83,8 @@ export async function PUT(req: NextRequest) {
       globalCooldownSec: next.globalCooldownSec,
       quietHoursStart: next.quietHoursStart ?? "",
       quietHoursEnd: next.quietHoursEnd ?? "",
-      usdToCnyRate: next.usdToCnyRate ?? 7.2,
+      currency: next.currency ?? "CNY",
+      usdRate: next.usdRate ?? 7.2,
       webhookKeySet: !!next.webhookKey,
       webhookKeyMasked: maskKey(next.webhookKey),
     },

@@ -16,9 +16,10 @@ interface Props {
   error: string | null;
   onRefresh: () => void;
   marketUrl: string;
+  symbol?: string;
 }
 
-export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }: Props) {
+export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl, symbol = "¥" }: Props) {
   const h = snapshot.histogram;
   const sellPrice = snapshot.sellPrice ?? h?.lowestSellOrder ?? null;
   const maxQty = Math.max(1, ...(h?.sellGraph ?? []).map((p) => p.quantity), ...(h?.buyGraph ?? []).map((p) => p.quantity));
@@ -42,7 +43,7 @@ export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }
       <div className="stat-grid">
         <div className="stat">
           <div className="k">最低售价</div>
-          <div className="v orange">{sellPrice != null ? `¥${fmtPrice(sellPrice)}` : "无在售"}</div>
+          <div className="v orange">{sellPrice != null ? `${symbol}${fmtPrice(sellPrice)}` : "无在售"}</div>
         </div>
         <div className="stat">
           <div className="k">在售数量</div>
@@ -50,7 +51,7 @@ export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }
         </div>
         <div className="stat">
           <div className="k">最高求购价</div>
-          <div className="v green">{h?.highestBuyOrder != null ? `¥${fmtPrice(h.highestBuyOrder)}` : "无"}</div>
+          <div className="v green">{h?.highestBuyOrder != null ? `${symbol}${fmtPrice(h.highestBuyOrder)}` : "无"}</div>
         </div>
         <div className="stat">
           <div className="k">求购数量</div>
@@ -64,7 +65,7 @@ export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }
             <div className="muted mb8">出售价格分布（低→高）</div>
             {h.sellGraph.slice(0, 10).map((p, i) => (
               <div className="bar-row" key={`s${i}`}>
-                <span>¥{fmtPrice(p.price)}</span>
+                <span>{symbol}{fmtPrice(p.price)}</span>
                 <div className="bar-track">
                   <div className="bar-fill sell" style={{ width: `${(p.quantity / maxQty) * 100}%` }} />
                 </div>
@@ -77,7 +78,7 @@ export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }
             <div className="muted mb8">求购价格分布（低→高）</div>
             {h.buyGraph.slice(0, 10).map((p, i) => (
               <div className="bar-row" key={`b${i}`}>
-                <span>¥{fmtPrice(p.price)}</span>
+                <span>{symbol}{fmtPrice(p.price)}</span>
                 <div className="bar-track">
                   <div className="bar-fill buy" style={{ width: `${(p.quantity / maxQty) * 100}%` }} />
                 </div>
@@ -89,7 +90,7 @@ export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }
         </div>
       )}
 
-      {!h && <div className="muted mt8">求购柱状图暂不可用（需要从物品页解析 nameid，首次巡检后一般可恢复）</div>}
+      {!h && <div className="muted mt8">求购数据暂不可用（正在适配新版市场接口）</div>}
     </div>
   );
 }

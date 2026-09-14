@@ -9,6 +9,7 @@ import { ItemList } from "@/components/ItemList";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Alert } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/client";
+import { currencySymbol } from "@steam-monitor/core";
 
 // 仪表盘为纯客户端页，无需静态生成
 export const dynamic = "force-dynamic";
@@ -38,7 +39,8 @@ export interface SettingsView {
   globalCooldownSec: number;
   quietHoursStart: string;
   quietHoursEnd: string;
-  usdToCnyRate: number;
+  currency: "CNY" | "HKD" | "USD";
+  usdRate: number;
   webhookKeySet: boolean;
   webhookKeyMasked: string;
 }
@@ -232,7 +234,13 @@ export default function Page() {
 
           {tab === "detail" &&
             (selected ? (
-              <ItemDetail key={selected.id} item={selected} onSaved={onSaved} onDeleted={onDeleted} />
+              <ItemDetail
+                key={selected.id}
+                item={selected}
+                symbol={settings ? currencySymbol(settings.currency) : "¥"}
+                onSaved={onSaved}
+                onDeleted={onDeleted}
+              />
             ) : (
               <div className="empty">尚未添加物品，点击左上角“添加物品”开始监控</div>
             ))}

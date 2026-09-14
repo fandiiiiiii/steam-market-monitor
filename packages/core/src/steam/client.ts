@@ -150,6 +150,7 @@ export class SteamClient {
       highestBuyOrder: num(json.highest_buy_order),
       sellGraph: graph(json.sell_order_graph),
       buyGraph: graph(json.buy_order_graph),
+      pricePrefix: typeof json.price_prefix === "string" ? json.price_prefix : "",
     };
   }
 

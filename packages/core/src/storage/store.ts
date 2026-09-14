@@ -23,7 +23,8 @@ const DEFAULT_SETTINGS: Settings = {
   globalCooldownSec: 60,
   quietHoursStart: null,
   quietHoursEnd: null,
-  usdToCnyRate: 7.2,
+  currency: "CNY",
+  usdRate: 7.2,
 };
 
 export const DEFAULT_HEALTH: Health = {

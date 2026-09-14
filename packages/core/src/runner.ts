@@ -4,7 +4,7 @@ import type { Notifier } from "./notifier.ts";
 import type { SteamClient } from "./steam/client.ts";
 import type { Store } from "./storage/store.ts";
 import { buildItemMessage, buildSystemMessage } from "./templates.ts";
-import { errMsg, nowTs, timePartsInZone } from "./util.ts";
+import { currencySymbol, errMsg, nowTs, timePartsInZone } from "./util.ts";
 
 export interface RunnerDeps {
   store: Store;
@@ -93,15 +93,29 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
 
     const items = allItems.filter((i) => i.enabled);
     const roundEvents: Omit<EventRecord, "id" | "ts">[] = [];
+    const symbol = currencySymbol(settings.currency);
 
     for (const item of items) {
       summary.itemsChecked += 1;
       health.itemsChecked += 1;
       try {
         const snap = await steam.snapshot(item);
-        // 搜索接口对匿名请求返回美元价格，按汇率换算为人民币（阈值/告警统一人民币口径）
+        // 搜索接口对匿名请求返回美元价格，按汇率换算为目标币种（阈值/告警统一口径）
         if (snap.sellPrice != null) {
-          snap.sellPrice = Math.round(snap.sellPrice * settings.usdToCnyRate * 100) / 100;
+          snap.sellPrice = Math.round(snap.sellPrice * settings.usdRate * 100) / 100;
+        }
+        // 柱状图若为美元（price_prefix=$），同样换算
+        if (snap.histogram && snap.histogram.pricePrefix === "$") {
+          const conv = (n: number | null) => (n == null ? n : Math.round(n * settings.usdRate * 100) / 100);
+          const convPt = (p: { price: number; quantity: number }) => ({
+            ...p,
+            price: Math.round(p.price * settings.usdRate * 100) / 100,
+          });
+          snap.histogram.lowestSellOrder = conv(snap.histogram.lowestSellOrder);
+          snap.histogram.highestBuyOrder = conv(snap.histogram.highestBuyOrder);
+          snap.histogram.sellGraph = snap.histogram.sellGraph.map(convPt);
+          snap.histogram.buyGraph = snap.histogram.buyGraph.map(convPt);
+          snap.histogram.pricePrefix = symbol;
         }
         if (snap.nameId && item.nameId !== snap.nameId) {
           item.nameId = snap.nameId;
@@ -126,7 +140,7 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
         }
 
         if (sendable.length > 0) {
-          const msg = buildItemMessage(item, sendable, now());
+          const msg = buildItemMessage(item, sendable, now(), symbol);
           let pushed = false;
           if (settings.webhookKey) {
             try {
@@ -135,7 +149,14 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
               summary.errors.push(`[${item.displayName}] ${errMsg(e)}`);
             }
           }
-          roundEvents.push(...sendable.map((e) => ({ ...e, pushed })));
+          roundEvents.push(
+            ...sendable.map((e) => ({
+              ...e,
+              title: e.title.replaceAll("¥", symbol),
+              detail: e.detail.replaceAll("¥", symbol),
+              pushed,
+            })),
+          );
           if (pushed) {
             summary.pushed += 1;
             health.pushed += 1;
@@ -187,7 +208,7 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
         if (isError) await store.setLastNotify("system:error", now());
         if (settings.webhookKey) {
           try {
-            await notifier.send(settings.webhookKey, buildSystemMessage(sysEvents, now()));
+            await notifier.send(settings.webhookKey, buildSystemMessage(sysEvents, now(), symbol));
             roundEvents.push(...sysEvents.map((e) => ({ ...e, pushed: true })));
           } catch (e) {
             summary.errors.push(`[系统告警] ${errMsg(e)}`);

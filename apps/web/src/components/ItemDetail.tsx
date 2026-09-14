@@ -8,6 +8,7 @@ import { SnapshotPanel } from "./SnapshotPanel";
 
 interface Props {
   item: MonitorItem;
+  symbol?: string;
   onSaved: () => Promise<void>;
   onDeleted: (nextId: string | null) => void;
 }
@@ -22,7 +23,7 @@ interface SnapshotView {
 
 const EMPTY_SNAP: SnapshotView = { histogram: null, sellCount: null, sellPrice: null, fetchedAt: 0 };
 
-export function ItemDetail({ item, onSaved, onDeleted }: Props) {
+export function ItemDetail({ item, symbol = "¥", onSaved, onDeleted }: Props) {
   const [form, setForm] = useState({
     displayName: item.displayName,
     enabled: item.enabled,
@@ -121,6 +122,7 @@ export function ItemDetail({ item, onSaved, onDeleted }: Props) {
         error={snapError}
         onRefresh={loadSnapshot}
         marketUrl={marketUrl}
+        symbol={symbol}
       />
 
       <h3 style={{ fontSize: 14, marginTop: 20 }}>监控设置</h3>
@@ -141,7 +143,7 @@ export function ItemDetail({ item, onSaved, onDeleted }: Props) {
           <span className="hint">同类型事件合并推送的最小间隔（10~86400）</span>
         </div>
         <div className="field">
-          <label>上架提醒价格上限（¥，留空不限）</label>
+          <label>上架提醒价格上限（{symbol}，留空不限）</label>
           <input
             type="number"
             step="0.01"
@@ -151,7 +153,7 @@ export function ItemDetail({ item, onSaved, onDeleted }: Props) {
           />
         </div>
         <div className="field">
-          <label>求购提醒最低价（¥，留空不限）</label>
+          <label>求购提醒最低价（{symbol}，留空不限）</label>
           <input
             type="number"
             step="0.01"

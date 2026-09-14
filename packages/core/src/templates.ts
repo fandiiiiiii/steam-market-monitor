@@ -16,8 +16,9 @@ const EVENT_COLORS: Partial<Record<EventType, string>> = {
 /**
  * 生成物品事件的企业微信 markdown 消息体。
  * 同一物品同一轮内的多个事件合并为一条消息。
+ * @param symbol 价格符号（按用户设置的币种替换事件文本中的 ¥）
  */
-export function buildItemMessage(item: MonitorItem, events: DetectEvent[], ts: number): string {
+export function buildItemMessage(item: MonitorItem, events: DetectEvent[], ts: number, symbol = "¥"): string {
   const sections = events
     .map((e) => {
       const color = EVENT_COLORS[e.type] ?? "info";
@@ -35,11 +36,11 @@ export function buildItemMessage(item: MonitorItem, events: DetectEvent[], ts: n
     ``,
     `[前往市场查看](${marketUrl(item.appId, item.marketHashName)})`,
   ];
-  return truncateBytes(lines.join("\n"), WECOM_MARKDOWN_MAX_BYTES);
+  return truncateBytes(lines.join("\n").replaceAll("¥", symbol), WECOM_MARKDOWN_MAX_BYTES);
 }
 
 /** 系统级消息（监控异常 / 恢复） */
-export function buildSystemMessage(events: DetectEvent[], ts: number): string {
+export function buildSystemMessage(events: DetectEvent[], ts: number, symbol = "¥"): string {
   const sections = events
     .map((e) => {
       const color = EVENT_COLORS[e.type] ?? "info";
@@ -52,7 +53,7 @@ export function buildSystemMessage(events: DetectEvent[], ts: number): string {
     ``,
     sections,
   ];
-  return truncateBytes(lines.join("\n"), WECOM_MARKDOWN_MAX_BYTES);
+  return truncateBytes(lines.join("\n").replaceAll("¥", symbol), WECOM_MARKDOWN_MAX_BYTES);
 }
 
 /** 测试消息 */

@@ -7,6 +7,7 @@ import {
   MemoryKV,
   type MonitorItem,
   runRound,
+  type Settings,
   Store,
 } from "../src/index.ts";
 
@@ -29,13 +30,14 @@ function item(overrides: Partial<MonitorItem> = {}): MonitorItem {
   };
 }
 
-const SETTINGS = {
+const SETTINGS: Settings = {
   webhookKey: "k",
   pollEnabled: true,
   globalCooldownSec: 60,
   quietHoursStart: null,
   quietHoursEnd: null,
-  usdToCnyRate: 1,
+  currency: "CNY",
+  usdRate: 1,
 };
 
 function snapAt(sellCount: number, sellPrice: number, at: number): ItemSnapshot {

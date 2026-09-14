@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { steam, store } from "@/lib/singletons";
-import { errMsg } from "@steam-monitor/core";
+import { currencySymbol, errMsg } from "@steam-monitor/core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export const maxDuration = 60;
 
 type Ctx = { params: { id: string } };
 
-/** 实时抓取物品行情快照（页面"刷新行情"用） */
+/** 实时抓取物品行情快照（页面"刷新行情"用），价格按用户设置的币种换算 */
 export async function GET(_req: NextRequest, ctx: Ctx) {
   const items = await store.getItems();
   const item = items.find((i) => i.id === ctx.params.id);
@@ -17,17 +17,26 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
     const snap = await steam.snapshot(item);
     const settings = await store.getSettings();
-    // 与 runner 保持一致：搜索价格是美元，按汇率换算为人民币
-    const sellPrice =
-      snap.sellPrice != null ? Math.round(snap.sellPrice * settings.usdToCnyRate * 100) / 100 : null;
+    const symbol = currencySymbol(settings.currency);
+    // 与 runner 保持一致：搜索价格是美元，按汇率换算为目标币种
+    const conv = (n: number | null) => (n == null ? n : Math.round(n * settings.usdRate * 100) / 100);
+    if (snap.histogram && snap.histogram.pricePrefix === "$") {
+      snap.histogram.lowestSellOrder = conv(snap.histogram.lowestSellOrder);
+      snap.histogram.highestBuyOrder = conv(snap.histogram.highestBuyOrder);
+      snap.histogram.sellGraph = snap.histogram.sellGraph.map((p) => ({ ...p, price: conv(p.price) ?? 0 }));
+      snap.histogram.buyGraph = snap.histogram.buyGraph.map((p) => ({ ...p, price: conv(p.price) ?? 0 }));
+      snap.histogram.pricePrefix = symbol;
+    }
     return NextResponse.json({
       snapshot: {
         histogram: snap.histogram,
         sellCount: snap.sellCount,
-        sellPrice,
+        sellPrice: conv(snap.sellPrice),
         fetchedAt: snap.fetchedAt,
         nameId: snap.nameId,
       },
+      currencySymbol: symbol,
+      currency: settings.currency,
     });
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 502 });
