@@ -66,14 +66,14 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
     }
   };
 
-  const testNotify = async () => {
+  const testNotify = async (mode?: "event") => {
     setTesting(true);
     setMsg(null);
     setErr(null);
     try {
-      const r = await apiSend<{ ok: boolean }>("POST", "/api/notify/test", form.webhookKey ? { key: form.webhookKey } : {});
-      setMsg("测试消息已发送，请到企业微信群查看");
-      if (!r.ok) setErr("发送未确认成功");
+      const body = mode === "event" ? { mode: "event", ...(form.webhookKey ? { key: form.webhookKey } : {}) } : form.webhookKey ? { key: form.webhookKey } : {};
+      await apiSend<{ ok: boolean }>("POST", "/api/notify/test", body);
+      setMsg(mode === "event" ? "模拟告警已发送，请到企业微信群查看（内容和真实告警一致）" : "测试消息已发送，请到企业微信群查看");
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -98,8 +98,11 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
         <span className="hint">创建方式见 README/部署文档：群聊 → 添加群机器人 → 复制 Webhook 地址中的 key</span>
       </div>
       <div className="flex mt8">
-        <button className="btn primary" onClick={testNotify} disabled={testing}>
+        <button className="btn primary" onClick={() => testNotify()} disabled={testing}>
           {testing ? "发送中…" : "发送测试消息"}
+        </button>
+        <button className="btn" onClick={() => testNotify("event")} disabled={testing}>
+          📢 模拟市场告警
         </button>
       </div>
 

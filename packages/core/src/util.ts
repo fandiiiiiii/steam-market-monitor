@@ -27,7 +27,19 @@ export function currencySymbol(currency: string): string {
   return CURRENCY_SYMBOLS[currency] ?? "¥";
 }
 
-const DEFAULT_TIME_ZONE = process.env.TZ || "Asia/Shanghai";
+/** 解析时区：兼容 ":UTC" 等特殊格式，非法值回退到北京时间 */
+function resolveTimeZone(): string {
+  const raw = (process.env.TZ ?? "").replace(/^:/, "").trim();
+  if (!raw) return "Asia/Shanghai";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: raw });
+    return raw;
+  } catch {
+    return "Asia/Shanghai";
+  }
+}
+
+const DEFAULT_TIME_ZONE = resolveTimeZone();
 
 /** 服务器时间按目标时区格式化（默认 Asia/Shanghai） */
 export function fmtTime(ts: number): string {
