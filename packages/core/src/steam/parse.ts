@@ -9,6 +9,8 @@ export interface ItemPageOrders {
   currency: number;
   buyOrders: HistogramPoint[];
   sellOrders: HistogramPoint[];
+  /** 物品官方显示名（market_name，如"谪星·引魂姬(国服)"） */
+  marketName: string | null;
 }
 
 const CURRENCY_CODE_BY_ID: Record<number, string> = {
@@ -64,6 +66,7 @@ export function parseItemPageOrders(html: string): ItemPageOrders | null {
   if (amtMax == null && cBuy == null && buyOrders.length === 0) return null;
   const sellCount = cSell ?? (sellOrders.length > 0 ? sellOrders.reduce((a, p) => a + p.quantity, 0) : 0);
   const buyCount = cBuy ?? (buyOrders.length > 0 ? buyOrders.reduce((a, p) => a + p.quantity, 0) : 0);
+  const nameM = html.match(/"market_name"\s*:\s*"([^"]+)"/);
   return {
     buyCount,
     sellCount,
@@ -73,6 +76,7 @@ export function parseItemPageOrders(html: string): ItemPageOrders | null {
     currency: cur ?? 23,
     buyOrders,
     sellOrders,
+    marketName: nameM ? nameM[1] : null,
   };
 }
 

@@ -64,6 +64,12 @@ export function ItemDetail({ item, symbol = "¥", onSaved, onDeleted }: Props) {
     loadSnapshot();
   }, [loadSnapshot]);
 
+  // 每分钟自动刷新行情快照
+  useEffect(() => {
+    const t = setInterval(() => void loadSnapshot(), 60_000);
+    return () => clearInterval(t);
+  }, [loadSnapshot]);
+
   const save = async () => {
     setSaving(true);
     setMsg(null);

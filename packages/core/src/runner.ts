@@ -106,6 +106,11 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
       try {
         // 物品页为权威数据源（在售数量/最低售价/订购数据与市场页一致），每轮抓取
         const snap = await steam.snapshot(item, { withPage: true });
+        // 自动纠正显示名：从物品页解析官方名称（如"梦魇武器箱"）
+        if (snap.pageName && item.displayName === item.marketHashName) {
+          item.displayName = snap.pageName;
+          await store.saveItems(allItems);
+        }
         // 价格币种策略：带 Cookie 时接口返回账号原生币种（如 HKD），原样使用并按该币种符号显示；
         // 匿名/美元时按自动汇率换算为设置的目标币种。
         const pc = snap.sellPriceCurrency ?? "USD";

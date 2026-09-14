@@ -62,13 +62,14 @@ export function AddItemDialog({ onClose, onAdded }: Props) {
     if (!url.trim()) return;
     setResolving(true);
     try {
-      const r = await apiSend<{ appId: number; marketHashName: string; nameId: number | null; warn: string | null }>(
-        "POST",
-        "/api/items/resolve-url",
-        { url },
-      );
+      const r = await apiSend<{
+        appId: number;
+        marketHashName: string;
+        displayName: string | null;
+        warn: string | null;
+      }>("POST", "/api/items/resolve-url", { url });
       if (r.warn) setWarn(r.warn);
-      await createItem(r.appId, r.marketHashName);
+      await createItem(r.appId, r.marketHashName, r.displayName ?? undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

@@ -254,20 +254,26 @@ export class SteamClient {
     });
   }
 
-  /** 从物品页 HTML 解析订单数据（订购/出售），等价于柱状图数据（需要登录 Cookie 才有订购数据） */
-  async getOrdersFromPage(appId: number, marketHashName: string): Promise<Histogram | null> {
+  /** 抓取物品页并解析订单数据与官方名称（需要登录 Cookie 才有完整数据） */
+  async getItemPage(
+    appId: number,
+    marketHashName: string,
+  ): Promise<{ histogram: Histogram | null; name: string | null }> {
     const html: string = await this.http(this.itemPagePath(appId, marketHashName), "text");
     const o = parseItemPageOrders(html);
-    if (!o) return null;
+    if (!o) return { histogram: null, name: null };
     return {
-      sellOrderCount: o.sellCount,
-      buyOrderCount: o.buyCount,
-      // 零在售/零订购时置空，避免页面占位值（如 0.23）被当成真实价格
-      lowestSellOrder: o.sellCount > 0 ? o.lowestSell : null,
-      highestBuyOrder: o.buyCount > 0 ? o.highestBuy : null,
-      sellGraph: o.sellOrders,
-      buyGraph: o.buyOrders,
-      pricePrefix: symbolOfCurrencyCode(currencyCodeOf(o.currency)),
+      histogram: {
+        sellOrderCount: o.sellCount,
+        buyOrderCount: o.buyCount,
+        // 零在售/零订购时置空，避免页面占位值（如 0.23）被当成真实价格
+        lowestSellOrder: o.sellCount > 0 ? o.lowestSell : null,
+        highestBuyOrder: o.buyCount > 0 ? o.highestBuy : null,
+        sellGraph: o.sellOrders,
+        buyGraph: o.buyOrders,
+        pricePrefix: symbolOfCurrencyCode(currencyCodeOf(o.currency)),
+      },
+      name: o.marketName,
     };
   }
 
@@ -279,7 +285,7 @@ export class SteamClient {
   async snapshot(
     item: Pick<MonitorItem, "appId" | "marketHashName" | "nameId">,
     opts?: { withPage?: boolean },
-  ): Promise<ItemSnapshot & { nameId?: number | null }> {
+  ): Promise<ItemSnapshot & { nameId?: number | null; pageName?: string | null }> {
     const [exact, nameId] = await Promise.all([
       this.searchItemExact(item.appId, item.marketHashName).catch((e) => {
         this.log(`精确查询失败（数据视为未知）：${errMsg(e)}`);
@@ -291,9 +297,12 @@ export class SteamClient {
     ]);
 
     let histogram: Histogram | null = null;
+    let pageName: string | null = null;
     if (opts?.withPage) {
       try {
-        histogram = await this.getOrdersFromPage(item.appId, item.marketHashName);
+        const page = await this.getItemPage(item.appId, item.marketHashName);
+        histogram = page.histogram;
+        pageName = page.name;
         if (histogram) this.log("已从物品页解析订单数据");
       } catch (e) {
         this.log(`物品页订单解析失败：${errMsg(e)}`);
@@ -332,6 +341,7 @@ export class SteamClient {
           : null,
       fetchedAt: Date.now(),
       nameId,
+      pageName,
     };
   }
 }
