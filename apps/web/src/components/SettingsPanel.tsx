@@ -134,7 +134,9 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
             <option value="HKD">港币 HK$</option>
             <option value="USD">美元 $</option>
           </select>
-          <span className="hint">汇率每日自动联网获取并缓存，无需手动填写；价格阈值按所选币种填写</span>
+          <span className="hint">
+            汇率每日自动联网获取并缓存；配置 Steam Cookie 后直接使用市场页真实币种价格，无需换算
+          </span>
         </div>
         <div className="field">
           <label>免打扰开始（HH:mm）</label>

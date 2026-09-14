@@ -145,7 +145,7 @@ export function ItemDetail({ item, symbol = "¥", onSaved, onDeleted }: Props) {
           <span className="hint">同类型事件合并推送的最小间隔（10~86400）</span>
         </div>
         <div className="field">
-          <label>上架提醒价格上限（{symbol}，留空不限）</label>
+          <label>上架提醒价格上限（{symbol}，留空不限；有 Cookie 时按市场页币种填写）</label>
           <input
             type="number"
             step="0.01"

@@ -86,11 +86,26 @@ export interface SteamSearchResultEntry {
 
 const CURRENCY_CODE_RE = /(USD|HKD|CNY|EUR|GBP|RUB|KRW|JPY|TWD)\s*$/;
 
-/** 从价格文本（如 "$210.94 USD"、"HK$7,281.49 HKD"）解析币种代码 */
+/** 币种符号 → 代码（部分响应只有符号、没有币种缩写） */
+const SYMBOL_CODE: Array<[string, string]> = [
+  ["HK$", "HKD"],
+  ["¥", "CNY"],
+  ["$", "USD"],
+  ["€", "EUR"],
+  ["£", "GBP"],
+  ["₩", "KRW"],
+  ["₽", "RUB"],
+];
+
+/** 从价格文本（如 "$210.94 USD"、"HK$7,000.00"、"¥1,234.56"）解析币种代码 */
 export function parseCurrencyCode(text?: string): string | null {
   if (!text) return null;
   const m = text.match(CURRENCY_CODE_RE);
-  return m ? m[1] : null;
+  if (m) return m[1];
+  for (const [sym, code] of SYMBOL_CODE) {
+    if (text.startsWith(sym)) return code;
+  }
+  return null;
 }
 
 /**
