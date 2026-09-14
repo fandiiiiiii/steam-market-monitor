@@ -14,13 +14,14 @@ type Mode = "search" | "url" | "manual";
 
 const NARAKA_APP_ID = 1203220;
 
-/** 常见谪星示例（一键添加） */
+/** 已验证存在的谪星示例（Steam 市场物品名为英文，游戏内中文名仅供显示） */
 const PRESETS: Array<{ hash: string; label: string }> = [
   { hash: "Star - Dragon's Bane(Non-CN)", label: "谪星·信手斩龙（国际服）" },
-  { hash: "Star - Dragon's Bane(CN)", label: "谪星·信手斩龙（国服）" },
-  { hash: "Star - Variance(Non-CN)", label: "谪星·无定法（国际服）" },
   { hash: "Star - Variance(CN)", label: "谪星·无定法（国服）" },
 ];
+
+/** 搜索关键词快捷按钮（市场物品名是英文，中文关键词搜不到） */
+const KEYWORD_CHIPS = ["Star", "Dragon", "Variance", "Bane"];
 
 export function AddItemDialog({ onClose, onAdded }: Props) {
   const [mode, setMode] = useState<Mode>("search");
@@ -118,13 +119,13 @@ export function AddItemDialog({ onClose, onAdded }: Props) {
               <input type="number" value={appId} onChange={(e) => setAppId(e.target.value)} />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label>关键词（物品名，如：谪星 / Dragon）</label>
+              <label>关键词（Steam 市场物品名是英文，如 Star / Dragon；中文名“谪星”搜不到）</label>
               <div className="flex">
                 <input
                   type="text"
                   value={query}
                   style={{ flex: 1 }}
-                  placeholder="输入关键词后点击搜索"
+                  placeholder="输入英文关键词后点击搜索"
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && doSearch()}
                 />
@@ -132,9 +133,39 @@ export function AddItemDialog({ onClose, onAdded }: Props) {
                   {searching ? "搜索中…" : "搜索"}
                 </button>
               </div>
+              <div className="flex wrap mt8">
+                {KEYWORD_CHIPS.map((k) => (
+                  <button
+                    key={k}
+                    className="btn small"
+                    onClick={() => {
+                      setQuery(k);
+                      void (async () => {
+                        setError(null);
+                        setResults([]);
+                        setSearching(true);
+                        try {
+                          const r = await apiGet<{
+                            results: Array<{ marketHashName: string; name: string; iconUrl?: string }>;
+                          }>(`/api/items/suggest?appid=${encodeURIComponent(appId)}&q=${encodeURIComponent(k)}`);
+                          setResults(r.results);
+                          if (r.results.length === 0) setWarn("没有找到相关物品，换个关键词试试");
+                          else setWarn(null);
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : String(e));
+                        } finally {
+                          setSearching(false);
+                        }
+                      })();
+                    }}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="mt8 muted">永劫无间谪星示例（点击直接添加）：</div>
+          <div className="mt8 muted">已验证的谪星示例（点击直接添加）：</div>
           <div className="flex wrap mt8">
             {PRESETS.map((p) => (
               <button key={p.hash} className="btn small" disabled={busy} onClick={() => createItem(NARAKA_APP_ID, p.hash, p.label)}>

@@ -18,6 +18,9 @@ export function clearAdminToken(): void {
 async function handle<T>(res: Response): Promise<T> {
   const j = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error("未授权：请先在页面“全局设置 → 安全”中填写管理口令并点击保存，然后再操作");
+    }
     throw new Error((j as { error?: string }).error ?? `请求失败（HTTP ${res.status}）`);
   }
   return j as T;
