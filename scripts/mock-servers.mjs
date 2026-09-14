@@ -52,6 +52,16 @@ const steam = createServer((req, res) => {
     return;
   }
   res.setHeader("content-type", "application/json; charset=utf-8");
+  if (url.pathname.endsWith("/render/") || url.pathname.endsWith("/render")) {
+    res.end(
+      JSON.stringify({
+        success: true,
+        total_count: state.listings.length,
+        results_html: state.listings.map((l) => rowHtml(l.listingId, l.price)).join("\n"),
+      }),
+    );
+    return;
+  }
   if (url.pathname.startsWith("/market/listings/")) {
     res.setHeader("content-type", "text/html; charset=utf-8");
     const html = `<html><head><script>Market_LoadOrderSpread( 123456 );</script></head><body>

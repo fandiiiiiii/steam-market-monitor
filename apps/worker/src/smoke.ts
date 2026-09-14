@@ -45,6 +45,16 @@ function mockSteamServer(): Promise<Server> {
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? "/", "http://127.0.0.1");
       res.setHeader("content-type", "application/json; charset=utf-8");
+      if (url.pathname.endsWith("/render/") || url.pathname.endsWith("/render")) {
+        res.end(
+          JSON.stringify({
+            success: true,
+            total_count: state.listings.length,
+            results_html: state.listings.map((l) => rowHtml(l.listingId, l.price)).join("\n"),
+          }),
+        );
+        return;
+      }
       if (url.pathname.startsWith("/market/listings/")) {
         res.setHeader("content-type", "text/html; charset=utf-8");
         const html = `<html><head><script>Market_LoadOrderSpread( 123456 );</script></head><body>

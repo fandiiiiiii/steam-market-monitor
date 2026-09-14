@@ -154,7 +154,27 @@ export class SteamClient {
     };
   }
 
-  /** 通过市场搜索接口按物品名精确查询在售列表（主路径，货币可控） */
+  /**
+   * 在售列表主路径：物品页"加载更多"接口（market/listings/{appid}/{hash}/render），
+   * 返回单条出售单（含 listingId），比搜索接口更准确。
+   */
+  private async getListingsViaRender(
+    appId: number,
+    marketHashName: string,
+    count: number,
+  ): Promise<{ listings: SellListing[]; totalCount: number | null } | null> {
+    const json = await this.http(
+      `/market/listings/${appId}/${encodeURIComponent(marketHashName)}/render/?start=0&count=${count}&currency=${this.currency}&language=${this.language}&format=json`,
+      "json",
+    );
+    if (!json || json.success !== true) return null;
+    const total = Number(json.total_count);
+    // render 结果只含该物品的出售单，无需按物品名过滤
+    const listings = parseSellRows(json.results_html ?? "");
+    return { listings, totalCount: Number.isFinite(total) ? total : null };
+  }
+
+  /** 通过市场搜索接口按物品名精确查询在售列表（次选路径，货币可控） */
   private async getListingsViaSearch(
     appId: number,
     marketHashName: string,
@@ -162,7 +182,7 @@ export class SteamClient {
   ): Promise<{ listings: SellListing[]; totalCount: number | null; source: "search" | "page" } | null> {
     const q = encodeURIComponent(marketHashName);
     const json = await this.http(
-      `/market/search/render/?query=${q}&start=0&count=${count}&search_descriptions=0&sort_column=price&sort_dir=asc&appid=${appId}&currency=${this.currency}&norender=1`,
+      `/market/search/render/?query=${q}&start=0&count=${count}&search_descriptions=0&sort_column=price&sort_dir=asc&appid=${appId}&currency=${this.currency}&l=${this.language}&norender=1`,
       "json",
     );
     if (!json || json.success !== true) return null;
@@ -174,7 +194,7 @@ export class SteamClient {
     return null;
   }
 
-  /** 降级路径：解析物品页 HTML 前 10 条在售（币种可能随服务器地区变化，仅作兜底） */
+  /** 兜底路径：解析物品页 HTML 前 10 条在售（币种可能随服务器地区变化，仅作兜底） */
   private async getListingsViaPage(appId: number, marketHashName: string): Promise<SellListing[]> {
     const html: string = await this.http(this.itemPagePath(appId, marketHashName), "text");
     return parseSellRows(html, { appId, marketHashName });
@@ -184,14 +204,21 @@ export class SteamClient {
     appId: number,
     marketHashName: string,
     count = 100,
-  ): Promise<{ listings: SellListing[]; totalCount: number | null; source: "search" | "page" }> {
-    let viaSearch: { listings: SellListing[]; totalCount: number | null; source: "search" | "page" } | null = null;
+  ): Promise<{ listings: SellListing[]; totalCount: number | null; source: "render" | "search" | "page" }> {
     try {
-      viaSearch = await this.getListingsViaSearch(appId, marketHashName, count);
+      const viaRender = await this.getListingsViaRender(appId, marketHashName, count);
+      if (viaRender && (viaRender.listings.length > 0 || viaRender.totalCount === 0)) {
+        return { ...viaRender, source: "render" };
+      }
+    } catch (e) {
+      this.log(`render 接口失败（${errMsg(e)}），尝试搜索接口`);
+    }
+    try {
+      const viaSearch = await this.getListingsViaSearch(appId, marketHashName, count);
+      if (viaSearch) return viaSearch;
     } catch (e) {
       this.log(`搜索接口失败（${errMsg(e)}），降级解析物品页`);
     }
-    if (viaSearch) return viaSearch;
     const rows = await this.getListingsViaPage(appId, marketHashName);
     return { listings: rows, totalCount: null, source: "page" };
   }
@@ -201,7 +228,7 @@ export class SteamClient {
     const q = encodeURIComponent(query.trim());
     if (!q) return [];
     const json = await this.http(
-      `/market/search/render/?query=${q}&start=0&count=20&search_descriptions=0&appid=${appId}&currency=${this.currency}&norender=1`,
+      `/market/search/render/?query=${q}&start=0&count=20&search_descriptions=0&appid=${appId}&currency=${this.currency}&l=${this.language}&norender=1`,
       "json",
     );
     if (!json || json.success !== true) return [];
