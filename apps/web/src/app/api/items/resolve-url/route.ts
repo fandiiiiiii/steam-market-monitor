@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { steam } from "@/lib/singletons";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 /** 解析粘贴的商品市场 URL，并尝试预解析 nameid（可选，失败不阻塞添加） */

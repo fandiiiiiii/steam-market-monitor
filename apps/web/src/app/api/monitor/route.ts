@@ -4,6 +4,7 @@ import { monitorAuthorized } from "@/lib/auth";
 import { ensureDefaults, notifier, steam, store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 async function run(req: NextRequest) {

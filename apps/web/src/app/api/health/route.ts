@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureDefaults, kvBackend, store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /** 运行状态（页面顶部徽标 / 部署自检用） */
 export async function GET() {

@@ -4,6 +4,7 @@ import { adminAuthorized } from "@/lib/auth";
 import { ensureDefaults, store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function maskKey(key: string): string {
   if (!key) return "";

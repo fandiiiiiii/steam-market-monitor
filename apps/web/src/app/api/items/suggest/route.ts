@@ -3,6 +3,7 @@ import { steam } from "@/lib/singletons";
 import { errMsg } from "@steam-monitor/core";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 /** 市场物品搜索（默认永劫无间 appid=1203220，可自定义 appid） */

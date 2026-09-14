@@ -4,6 +4,7 @@ import { adminAuthorized } from "@/lib/auth";
 import { store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type Ctx = { params: { id: string } };
 

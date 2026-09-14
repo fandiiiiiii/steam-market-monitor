@@ -3,6 +3,7 @@ import { steam, store } from "@/lib/singletons";
 import { errMsg } from "@steam-monitor/core";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 type Ctx = { params: { id: string } };

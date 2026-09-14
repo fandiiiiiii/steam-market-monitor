@@ -5,6 +5,7 @@ import { coerceItemInput } from "@/lib/items";
 import { ensureDefaults, store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   await ensureDefaults();

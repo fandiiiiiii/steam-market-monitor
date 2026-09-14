@@ -4,6 +4,7 @@ import { notifier, store } from "@/lib/singletons";
 import { errMsg } from "@steam-monitor/core";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 /** 发送测试消息（可传临时 key 测试未保存的机器人） */
