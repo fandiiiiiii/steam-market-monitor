@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Store } from "@steam-monitor/core";
 import { ensureDefaults, kvBackend, store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
@@ -28,6 +29,8 @@ export async function GET() {
   return NextResponse.json(
     {
       backend: kvBackend.backend,
+      backendSource: kvBackend.source,
+      storeVersion: Store.VERSION,
       serverTime: Date.now(),
       pollEnabled: settings.pollEnabled,
       webhookKeySet: !!settings.webhookKey,

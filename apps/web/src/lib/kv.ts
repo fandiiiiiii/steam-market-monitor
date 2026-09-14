@@ -38,14 +38,19 @@ class UpstashStorage implements KVStorage {
   }
 }
 
-export function makeKV(): { kv: KVStorage; backend: "upstash-redis" | "file" } {
+export function makeKV(): { kv: KVStorage; backend: "upstash-redis" | "file"; source: string } {
   const url =
     process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || process.env.STORAGE_URL;
   const token =
     process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.STORAGE_TOKEN;
   if (url && token) {
-    return { kv: new UpstashStorage(url, token), backend: "upstash-redis" };
+    const source = process.env.UPSTASH_REDIS_REST_URL
+      ? "UPSTASH_REDIS_REST"
+      : process.env.KV_REST_API_URL
+        ? "KV_REST_API"
+        : "STORAGE";
+    return { kv: new UpstashStorage(url, token), backend: "upstash-redis", source };
   }
   const file = path.join(process.cwd(), "data", "db.json");
-  return { kv: new FileKV(file), backend: "file" };
+  return { kv: new FileKV(file), backend: "file", source: "file" };
 }

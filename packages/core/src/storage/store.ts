@@ -53,6 +53,9 @@ interface Meta {
 
 /** 数据仓储：把业务对象序列化到 KVStorage，键名统一管理 */
 export class Store {
+  /** 版本标记：用于线上诊断是否使用了过期构建产物 */
+  static readonly VERSION = "core-store-v1";
+
   private readonly kv: KVStorage;
 
   constructor(kv: KVStorage) {
