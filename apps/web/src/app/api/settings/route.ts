@@ -23,7 +23,6 @@ export async function GET() {
       quietHoursStart: s.quietHoursStart ?? "",
       quietHoursEnd: s.quietHoursEnd ?? "",
       currency: s.currency ?? "CNY",
-      usdRate: s.usdRate ?? 7.2,
       webhookKeySet: !!s.webhookKey,
       webhookKeyMasked: maskKey(s.webhookKey),
     },
@@ -59,13 +58,6 @@ export async function PUT(req: NextRequest) {
       next[f] = v || null;
     }
   }
-  if (body?.usdRate !== undefined) {
-    const n = Number(body.usdRate);
-    if (!Number.isFinite(n) || n < 0.1 || n > 1000) {
-      return NextResponse.json({ error: "usdRate 需在 0.1~1000 之间" }, { status: 400 });
-    }
-    next.usdRate = n;
-  }
   if (typeof body?.currency === "string" && ["CNY", "HKD", "USD"].includes(body.currency)) {
     next.currency = body.currency as Settings["currency"];
   }
@@ -84,7 +76,6 @@ export async function PUT(req: NextRequest) {
       quietHoursStart: next.quietHoursStart ?? "",
       quietHoursEnd: next.quietHoursEnd ?? "",
       currency: next.currency ?? "CNY",
-      usdRate: next.usdRate ?? 7.2,
       webhookKeySet: !!next.webhookKey,
       webhookKeyMasked: maskKey(next.webhookKey),
     },

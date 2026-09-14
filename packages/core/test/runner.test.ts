@@ -37,7 +37,6 @@ const SETTINGS: Settings = {
   quietHoursStart: null,
   quietHoursEnd: null,
   currency: "CNY",
-  usdRate: 1,
 };
 
 function snapAt(sellCount: number, sellPrice: number, at: number): ItemSnapshot {
@@ -66,10 +65,11 @@ describe("runRound", () => {
     const { send, calls } = makeSend();
 
     const now = () => clock;
-    const r1 = await runRound({ store, steam, notifier: { send }, now });
+    const deps = { store, steam, notifier: { send }, now, fxRateResolver: async () => 1 };
+    const r1 = await runRound(deps);
     assert.equal(r1.pushed, 0);
     clock += 61_000;
-    const r2 = await runRound({ store, steam, notifier: { send }, now });
+    const r2 = await runRound(deps);
     assert.equal(r2.pushed, 1);
     assert.equal(calls.length, 1);
     assert.equal(calls[0][0], "k");
@@ -94,11 +94,12 @@ describe("runRound", () => {
     const steam = { snapshot: async () => snapshots.shift() ?? snapAt(1, 1000, clock) };
     const { send, calls } = makeSend();
     const now = () => clock;
-    await runRound({ store, steam, notifier: { send }, now });
+    const deps = { store, steam, notifier: { send }, now, fxRateResolver: async () => 1 };
+    await runRound(deps);
     clock += 31_000;
-    await runRound({ store, steam, notifier: { send }, now });
+    await runRound(deps);
     clock += 62_000; // 距首次推送 93s，超过 60s 冷却
-    await runRound({ store, steam, notifier: { send }, now });
+    await runRound(deps);
     assert.equal(calls.length, 2);
   });
 
@@ -114,7 +115,7 @@ describe("runRound", () => {
     const { send } = makeSend();
     // 用 UTC 时间构造“北京时间 23:30”（= UTC 15:30），验证按北京时间进入免打扰
     const utc = Date.UTC(2026, 0, 1, 15, 30, 0);
-    const r = await runRound({ store, steam, notifier: { send }, now: () => utc });
+    const r = await runRound({ store, steam, notifier: { send }, now: () => utc, fxRateResolver: async () => 1 });
     assert.equal(r.skipped, true);
     assert.equal(r.skipReason, "处于免打扰时段");
   });
@@ -126,7 +127,7 @@ describe("runRound", () => {
     let called = 0;
     const steam = { snapshot: async () => (called++, snapAt(1, 1000, 1000)) };
     const { send } = makeSend();
-    const r = await runRound({ store, steam, notifier: { send }, now: () => 1000 });
+    const r = await runRound({ store, steam, notifier: { send }, now: () => 1000, fxRateResolver: async () => 1 });
     assert.equal(r.skipped, true);
     assert.equal(called, 0);
   });
@@ -145,13 +146,14 @@ describe("runRound", () => {
     };
     const { send, calls } = makeSend();
     const now = () => clock;
+    const deps = { store, steam, notifier: { send }, now, fxRateResolver: async () => 1 };
     for (let i = 0; i < 5; i++) {
-      await runRound({ store, steam, notifier: { send }, now });
+      await runRound(deps);
       clock += 61_000;
     }
     assert.equal(calls.filter(([, m]) => m.includes("监控连续失败")).length, 1);
     failing = false;
-    await runRound({ store, steam, notifier: { send }, now });
+    await runRound(deps);
     assert.ok(calls.some(([, m]) => m.includes("监控已恢复")));
   });
 });

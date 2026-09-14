@@ -1,6 +1,7 @@
 export * from "./types.ts";
 export * from "./util.ts";
 export * from "./engine.ts";
+export * from "./fx.ts";
 export * from "./runner.ts";
 export * from "./notifier.ts";
 export * from "./notifier.ts";

@@ -8,8 +8,7 @@ import { ItemDetail } from "@/components/ItemDetail";
 import { ItemList } from "@/components/ItemList";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Alert } from "@/components/ui";
-import { apiGet, apiSend } from "@/lib/client";
-import { currencySymbol } from "@steam-monitor/core";
+import { apiGet, apiSend, currencySymbol } from "@/lib/client";
 
 // 仪表盘为纯客户端页，无需静态生成
 export const dynamic = "force-dynamic";
@@ -40,7 +39,6 @@ export interface SettingsView {
   quietHoursStart: string;
   quietHoursEnd: string;
   currency: "CNY" | "HKD" | "USD";
-  usdRate: number;
   webhookKeySet: boolean;
   webhookKeyMasked: string;
 }

@@ -24,7 +24,6 @@ const DEFAULT_SETTINGS: Settings = {
   quietHoursStart: null,
   quietHoursEnd: null,
   currency: "CNY",
-  usdRate: 7.2,
 };
 
 export const DEFAULT_HEALTH: Health = {
@@ -132,6 +131,15 @@ export class Store {
     const records: EventRecord[] = events.map((e) => ({ ...e, id: genId(), ts }));
     list.unshift(...records);
     await this.kv.set(KEY_EVENTS, JSON.stringify(list.slice(0, EVENTS_CAP)));
+  }
+
+  // ---- 原始 JSON 缓存（供 fx 汇率等通用缓存使用）----
+  async getRawJson<T>(key: string): Promise<T | null> {
+    return jsonParse<T | null>(await this.kv.get(key), null);
+  }
+
+  async setRawJson(key: string, value: unknown): Promise<void> {
+    await this.kv.set(key, JSON.stringify(value));
   }
 
   // ---- 健康 ----

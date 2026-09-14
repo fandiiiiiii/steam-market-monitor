@@ -19,7 +19,6 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
     quietHoursStart: settings.quietHoursStart,
     quietHoursEnd: settings.quietHoursEnd,
     currency: settings.currency ?? "CNY",
-    usdRate: settings.usdRate ?? 7.2,
     webhookKey: "",
   });
   const [adminToken, setAdminTokenState] = useState("");
@@ -35,7 +34,6 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
       quietHoursStart: settings.quietHoursStart,
       quietHoursEnd: settings.quietHoursEnd,
       currency: settings.currency ?? "CNY",
-      usdRate: settings.usdRate ?? 7.2,
       webhookKey: "",
     });
     setAdminTokenState(getAdminToken());
@@ -53,7 +51,6 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
         quietHoursStart: form.quietHoursStart || null,
         quietHoursEnd: form.quietHoursEnd || null,
         currency: form.currency,
-        usdRate: Number(form.usdRate),
         webhookKey: form.webhookKey,
       });
       setForm((f) => ({ ...f, webhookKey: "" }));
@@ -125,7 +122,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
           <span className="hint">与物品级冷却取较大值生效</span>
         </div>
         <div className="field">
-          <label>显示币种（市场页显示的币种，如港币请选 HKD）</label>
+          <label>显示币种（默认人民币；市场页显示的币种，如港币请选 HKD）</label>
           <select
             value={form.currency}
             onChange={(e) => setForm({ ...form, currency: e.target.value as "CNY" | "HKD" | "USD" })}
@@ -134,18 +131,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
             <option value="HKD">港币 HK$</option>
             <option value="USD">美元 $</option>
           </select>
-        </div>
-        <div className="field">
-          <label>汇率（1 美元 = X 所选币种）</label>
-          <input
-            type="number"
-            step="0.01"
-            min={0.1}
-            max={1000}
-            value={form.usdRate}
-            onChange={(e) => setForm({ ...form, usdRate: Number(e.target.value) })}
-          />
-          <span className="hint">人民币默认 7.2，港币约 7.8，美元填 1；价格阈值按所选币种填写</span>
+          <span className="hint">汇率每日自动联网获取并缓存，无需手动填写；价格阈值按所选币种填写</span>
         </div>
         <div className="field">
           <label>免打扰开始（HH:mm）</label>

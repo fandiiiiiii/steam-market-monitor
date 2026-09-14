@@ -48,10 +48,8 @@ export interface Settings {
   /** 免打扰时段起 "HH:mm"（按北京时间），空 = 关闭 */
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
-  /** 显示/告警币种（Steam 搜索接口对匿名请求返回美元，按汇率换算为目标币种） */
+  /** 显示/告警币种（Steam 搜索接口对匿名请求返回美元，按自动汇率换算为目标币种） */
   currency: "CNY" | "HKD" | "USD";
-  /** 汇率：1 美元 = X 目标币（CNY 默认 7.2，HKD 约 7.8，USD 填 1） */
-  usdRate: number;
 }
 
 /** 单条出售单（保留类型定义，当前监控使用聚合数量/价格，不再逐条解析） */

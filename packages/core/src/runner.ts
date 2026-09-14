@@ -1,5 +1,6 @@
 import type { DetectEvent, EventRecord, EventType, MonitorItem, RoundSummary, Settings } from "./types.ts";
 import { detectChanges, stateFingerprint } from "./engine.ts";
+import { getUsdRate } from "./fx.ts";
 import type { Notifier } from "./notifier.ts";
 import type { SteamClient } from "./steam/client.ts";
 import type { Store } from "./storage/store.ts";
@@ -12,6 +13,8 @@ export interface RunnerDeps {
   notifier: Pick<Notifier, "send">;
   now?: () => number;
   onLog?: (msg: string) => void;
+  /** 汇率解析器（测试注入用）；默认自动联网获取并缓存 24h */
+  fxRateResolver?: (currency: string) => Promise<number>;
 }
 
 /** 各类事件的默认冷却（秒） */
@@ -94,22 +97,24 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
     const items = allItems.filter((i) => i.enabled);
     const roundEvents: Omit<EventRecord, "id" | "ts">[] = [];
     const symbol = currencySymbol(settings.currency);
+    const resolveRate = deps.fxRateResolver ?? ((c: string) => getUsdRate(store, c));
+    const rate = await resolveRate(settings.currency);
 
     for (const item of items) {
       summary.itemsChecked += 1;
       health.itemsChecked += 1;
       try {
         const snap = await steam.snapshot(item);
-        // 搜索接口对匿名请求返回美元价格，按汇率换算为目标币种（阈值/告警统一口径）
+        // 搜索接口对匿名请求返回美元价格，按自动汇率换算为目标币种（阈值/告警统一口径）
         if (snap.sellPrice != null) {
-          snap.sellPrice = Math.round(snap.sellPrice * settings.usdRate * 100) / 100;
+          snap.sellPrice = Math.round(snap.sellPrice * rate * 100) / 100;
         }
         // 柱状图若为美元（price_prefix=$），同样换算
         if (snap.histogram && snap.histogram.pricePrefix === "$") {
-          const conv = (n: number | null) => (n == null ? n : Math.round(n * settings.usdRate * 100) / 100);
+          const conv = (n: number | null) => (n == null ? n : Math.round(n * rate * 100) / 100);
           const convPt = (p: { price: number; quantity: number }) => ({
             ...p,
-            price: Math.round(p.price * settings.usdRate * 100) / 100,
+            price: Math.round(p.price * rate * 100) / 100,
           });
           snap.histogram.lowestSellOrder = conv(snap.histogram.lowestSellOrder);
           snap.histogram.highestBuyOrder = conv(snap.histogram.highestBuyOrder);

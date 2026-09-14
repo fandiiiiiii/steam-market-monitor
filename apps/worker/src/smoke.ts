@@ -137,13 +137,13 @@ async function main(): Promise<void> {
       quietHoursStart: null,
       quietHoursEnd: null,
       currency: "CNY",
-      usdRate: 1,
     });
     const steam = new SteamClient({ baseUrl: `http://127.0.0.1:${portOf(steamSrv)}`, minIntervalMs: 0 });
     const notifier = new Notifier({ baseUrl: `http://127.0.0.1:${portOf(wecomSrv)}` });
+    const deps = { store, steam, notifier, onLog: (m: string) => console.log(`[smoke] ${m}`), fxRateResolver: async () => 1 };
 
     // 第 1 轮：基线（静默）
-    const r1 = await runRound({ store, steam, notifier, onLog: (m) => console.log(`[smoke] ${m}`) });
+    const r1 = await runRound(deps);
     assert(r1.pushed === 0, `首轮应不推送，实际推送 ${r1.pushed}`);
     assert(received.length === 0, "首轮不应有任何 webhook 调用");
 
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
       ["800.00", 3, "3 orders @ ¥800.00"],
     ];
 
-    const r2 = await runRound({ store, steam, notifier, onLog: (m) => console.log(`[smoke] ${m}`) });
+    const r2 = await runRound(deps);
     const events = await store.getEvents("item-1");
     console.log(`[smoke] 第二轮事件：${events.map((e) => `${e.type}(${e.title})`).join(" | ")}`);
     assert(r2.pushed >= 1, `第二轮应至少推送 1 条，实际 ${r2.pushed}`);

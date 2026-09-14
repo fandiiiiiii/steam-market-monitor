@@ -56,3 +56,9 @@ export const EVENT_TYPE_LABEL: Record<string, { text: string; cls: string }> = {
   monitor_recovered: { text: "监控恢复", cls: "ok" },
   system: { text: "系统", cls: "info" },
 };
+
+export function currencySymbol(currency: string): string {
+  if (currency === "HKD") return "HK$";
+  if (currency === "USD") return "$";
+  return "¥";
+}
