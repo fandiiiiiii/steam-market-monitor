@@ -37,10 +37,13 @@ export const DEFAULT_HEALTH: Health = {
   durationMs: 0,
 };
 
-function jsonParse<T>(s: string | null, fallback: T): T {
+function jsonParse<T>(s: unknown, fallback: T): T {
   if (s == null) return fallback;
   try {
-    return JSON.parse(s) as T;
+    // 存储层契约是字符串；个别实现可能已把 JSON 自动解析为对象，这里做兼容
+    if (typeof s === "string") return JSON.parse(s) as T;
+    if (typeof s === "object") return s as T;
+    return fallback;
   } catch {
     return fallback;
   }

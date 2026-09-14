@@ -12,7 +12,9 @@ class UpstashStorage implements KVStorage {
   private readonly client: Redis;
 
   constructor(url: string, token: string) {
-    this.client = new Redis({ url, token });
+    // automaticDeserialization: false —— 让 get 返回原始字符串，
+    // 由业务层自行 JSON 解析（默认开启时 get 会把 JSON 值自动转成对象，破坏字符串契约）
+    this.client = new Redis({ url, token, automaticDeserialization: false });
   }
 
   async get(key: string): Promise<string | null> {
