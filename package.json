@@ -17,11 +17,6 @@
     "worker:once": "pnpm --filter @steam-monitor/worker start:once",
     "smoke": "pnpm --filter @steam-monitor/worker smoke"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
   "devDependencies": {
     "@types/node": "^22.7.4",
     "eslint": "^9.12.0",
