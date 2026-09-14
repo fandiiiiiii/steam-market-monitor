@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeWebhookKey, Notifier } from "../src/index.ts";
+import { fmtTime, normalizeWebhookKey, Notifier } from "../src/index.ts";
+
+describe("fmtTime", () => {
+  it("默认按北京时间格式化（UTC 10:00 → 18:00）", () => {
+    const ts = Date.UTC(2026, 0, 1, 10, 0, 0);
+    assert.equal(fmtTime(ts), "2026-01-01 18:00:00");
+  });
+});
 
 function jsonRes(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

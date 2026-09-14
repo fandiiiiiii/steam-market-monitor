@@ -38,10 +38,13 @@ export function currencySymbol(currency: string): string {
   return CURRENCY_SYMBOLS[currency] ?? "¥";
 }
 
-/** 解析时区：兼容 ":UTC" 等特殊格式，非法值回退到北京时间 */
+/**
+ * 解析时区：默认北京时间；仅当用户明确配置了非 UTC 的 TZ 时才使用。
+ * （Vercel 运行时固定注入 TZ=UTC，兼容 ":UTC" 格式，均回退到 Asia/Shanghai）
+ */
 function resolveTimeZone(): string {
   const raw = (process.env.TZ ?? "").replace(/^:/, "").trim();
-  if (!raw) return "Asia/Shanghai";
+  if (!raw || raw.toUpperCase() === "UTC") return "Asia/Shanghai";
   try {
     new Intl.DateTimeFormat("en", { timeZone: raw });
     return raw;
@@ -52,10 +55,20 @@ function resolveTimeZone(): string {
 
 const DEFAULT_TIME_ZONE = resolveTimeZone();
 
-/** 服务器时间按目标时区格式化（默认 Asia/Shanghai） */
+/** 时间戳按目标时区（默认北京时间）格式化为 YYYY-MM-DD HH:mm:ss */
 export function fmtTime(ts: number): string {
-  const s = new Date(ts).toLocaleString("zh-CN", { timeZone: DEFAULT_TIME_ZONE, hour12: false });
-  return s.replace(/\//g, "-");
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DEFAULT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(ts));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
 }
 
 /** 取指定时区下的 {h, m}（用于免打扰时段判断，避免服务器时区造成偏移） */
