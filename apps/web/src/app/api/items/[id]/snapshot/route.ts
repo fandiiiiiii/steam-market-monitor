@@ -4,6 +4,7 @@ import { errMsg } from "@steam-monitor/core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const maxDuration = 60;
 
 type Ctx = { params: { id: string } };
@@ -18,8 +19,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     return NextResponse.json({
       snapshot: {
         histogram: snap.histogram,
-        listings: snap.listings.slice(0, 30),
-        totalListings: snap.totalListings,
+        sellCount: snap.sellCount,
+        sellPrice: snap.sellPrice,
         fetchedAt: snap.fetchedAt,
         nameId: snap.nameId,
       },

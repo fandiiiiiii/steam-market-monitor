@@ -1,12 +1,11 @@
 import { ProxyAgent } from "undici";
-import type { Histogram, HistogramPoint, ItemSnapshot, MonitorItem, SellListing } from "../types.ts";
+import type { Histogram, HistogramPoint, ItemSnapshot, MonitorItem } from "../types.ts";
 import { errMsg, sleep } from "../util.ts";
 import {
   type ItemSearchResult,
   extractNameId,
   parseMarketUrl,
-  parseSearchResults,
-  parseSellRows,
+  parseSearchResultsJson,
 } from "./parse.ts";
 
 export interface SteamClientOptions {
@@ -112,13 +111,13 @@ export class SteamClient {
     }
   }
 
-  /** 物品页 HTML（用于解析 nameid / 降级解析出售行） */
+  /** 物品页 HTML（用于解析 nameid） */
   private itemPagePath(appId: number, marketHashName: string): string {
     const hash = encodeURIComponent(marketHashName);
     return `/market/listings/${appId}/${hash}?l=${this.language}&country=${this.country}`;
   }
 
-  /** 从物品页解析 item_nameid（histogram 接口必需） */
+  /** 从物品页解析 item_nameid（histogram 接口必需；失败返回 null，不阻塞监控） */
   async resolveNameId(appId: number, marketHashName: string): Promise<number | null> {
     const html: string = await this.http(this.itemPagePath(appId, marketHashName), "text");
     return extractNameId(html);
@@ -154,106 +153,93 @@ export class SteamClient {
     };
   }
 
-  /**
-   * 在售列表主路径：物品页"加载更多"接口（market/listings/{appid}/{hash}/render），
-   * 返回单条出售单（含 listingId），比搜索接口更准确。
-   */
-  private async getListingsViaRender(
-    appId: number,
-    marketHashName: string,
-    count: number,
-  ): Promise<{ listings: SellListing[]; totalCount: number | null } | null> {
-    const json = await this.http(
-      `/market/listings/${appId}/${encodeURIComponent(marketHashName)}/render/?start=0&count=${count}&currency=${this.currency}&language=${this.language}&format=json`,
-      "json",
-    );
-    if (!json || json.success !== true) return null;
-    const total = Number(json.total_count);
-    // render 结果只含该物品的出售单，无需按物品名过滤
-    const listings = parseSellRows(json.results_html ?? "");
-    return { listings, totalCount: Number.isFinite(total) ? total : null };
-  }
-
-  /** 通过市场搜索接口按物品名精确查询在售列表（次选路径，货币可控） */
-  private async getListingsViaSearch(
-    appId: number,
-    marketHashName: string,
-    count: number,
-  ): Promise<{ listings: SellListing[]; totalCount: number | null; source: "search" | "page" } | null> {
-    const q = encodeURIComponent(marketHashName);
-    const json = await this.http(
-      `/market/search/render/?query=${q}&start=0&count=${count}&search_descriptions=0&sort_column=price&sort_dir=asc&appid=${appId}&currency=${this.currency}&l=${this.language}&norender=1`,
-      "json",
-    );
-    if (!json || json.success !== true) return null;
-    const total = Number(json.total_count);
-    const listings = parseSellRows(json.results_html ?? "", { appId, marketHashName });
-    if (listings.length > 0 || (Number.isFinite(total) && total === 0)) {
-      return { listings, totalCount: Number.isFinite(total) ? total : null, source: "search" };
-    }
-    return null;
-  }
-
-  /** 兜底路径：解析物品页 HTML 前 10 条在售（币种可能随服务器地区变化，仅作兜底） */
-  private async getListingsViaPage(appId: number, marketHashName: string): Promise<SellListing[]> {
-    const html: string = await this.http(this.itemPagePath(appId, marketHashName), "text");
-    return parseSellRows(html, { appId, marketHashName });
-  }
-
-  async getListings(
-    appId: number,
-    marketHashName: string,
-    count = 100,
-  ): Promise<{ listings: SellListing[]; totalCount: number | null; source: "render" | "search" | "page" }> {
-    try {
-      const viaRender = await this.getListingsViaRender(appId, marketHashName, count);
-      if (viaRender && (viaRender.listings.length > 0 || viaRender.totalCount === 0)) {
-        return { ...viaRender, source: "render" };
-      }
-    } catch (e) {
-      this.log(`render 接口失败（${errMsg(e)}），尝试搜索接口`);
-    }
-    try {
-      const viaSearch = await this.getListingsViaSearch(appId, marketHashName, count);
-      if (viaSearch) return viaSearch;
-    } catch (e) {
-      this.log(`搜索接口失败（${errMsg(e)}），降级解析物品页`);
-    }
-    const rows = await this.getListingsViaPage(appId, marketHashName);
-    return { listings: rows, totalCount: null, source: "page" };
-  }
-
-  /** 市场物品搜索（按关键字），返回按物品去重后的结果 */
-  async searchItems(appId: number, query: string): Promise<ItemSearchResult[]> {
+  /** 市场搜索（新版结构化接口）。query 支持中文名；返回按物品去重后的结果 */
+  async searchItems(appId: number, query: string, start = 0, count = 100): Promise<ItemSearchResult[]> {
     const q = encodeURIComponent(query.trim());
-    if (!q) return [];
+    const qPart = q ? `query=${q}&` : "";
     const json = await this.http(
-      `/market/search/render/?query=${q}&start=0&count=20&search_descriptions=0&appid=${appId}&currency=${this.currency}&l=${this.language}&norender=1`,
+      `/market/search/render/?${qPart}start=${start}&count=${count}&search_descriptions=0&appid=${appId}&currency=${this.currency}&country=${this.country}&l=${this.language}&norender=1`,
       "json",
     );
     if (!json || json.success !== true) return [];
-    return parseSearchResults(json.results_html ?? "", appId);
+    return parseSearchResultsJson(json.results);
   }
 
-  /** 拉取物品完整快照（柱状图 + 在售列表），histogram 失败时降级返回 null */
-  async snapshot(item: Pick<MonitorItem, "appId" | "marketHashName" | "nameId">): Promise<ItemSnapshot & { nameId?: number }> {
-    const nameId = item.nameId ?? (await this.resolveNameId(item.appId, item.marketHashName));
-    if (!nameId) {
-      throw new Error(`无法解析 item_nameid，请检查物品名是否存在：${item.marketHashName}`);
+  /** 按市场名精确查询单个物品的在售数量与最低价（无该物品结果时返回 null） */
+  async searchItemExact(
+    appId: number,
+    marketHashName: string,
+  ): Promise<{ sellCount: number | null; sellPrice: number | null } | null> {
+    const results = await this.searchItems(appId, marketHashName, 0, 100);
+    const hit = results.find((r) => r.marketHashName === marketHashName);
+    if (!hit) return null;
+    return { sellCount: hit.sellListings ?? null, sellPrice: hit.sellPrice ?? null };
+  }
+
+  /**
+   * 抓取指定 appid 的完整市场目录（用于中文模糊搜索索引）。
+   * 注意：Steam 每页最多返回 10 条，需要按 start 翻页；零在售物品不会出现在目录中。
+   */
+  async browseCatalog(appId: number, maxPages = 30): Promise<ItemSearchResult[]> {
+    const PAGE = 10;
+    const first = await this.http(
+      `/market/search/render/?start=0&count=${PAGE}&search_descriptions=0&appid=${appId}&currency=${this.currency}&country=${this.country}&l=${this.language}&norender=1`,
+      "json",
+    );
+    if (!first || first.success !== true) return [];
+    const total = Number(first.total_count);
+    const all: ItemSearchResult[] = parseSearchResultsJson(first.results);
+    const pages = Math.min(Math.max(1, Math.ceil((Number.isFinite(total) ? total : 0) / PAGE)), maxPages);
+    for (let p = 1; p < pages; p++) {
+      const json = await this.http(
+        `/market/search/render/?start=${p * PAGE}&count=${PAGE}&search_descriptions=0&appid=${appId}&currency=${this.currency}&country=${this.country}&l=${this.language}&norender=1`,
+        "json",
+      );
+      if (!json || json.success !== true) break;
+      all.push(...parseSearchResultsJson(json.results));
     }
-    const [h, l] = await Promise.allSettled([
-      this.getHistogram(item.appId, nameId),
-      this.getListings(item.appId, item.marketHashName),
+    const seen = new Set<string>();
+    return all.filter((r) => {
+      if (seen.has(r.marketHashName)) return false;
+      seen.add(r.marketHashName);
+      return true;
+    });
+  }
+
+  /**
+   * 拉取物品完整快照：搜索接口（在售数量+最低价，主数据）+ 柱状图（求购，可选）。
+   * 两个来源各自容错，互不阻塞。
+   */
+  async snapshot(
+    item: Pick<MonitorItem, "appId" | "marketHashName" | "nameId">,
+  ): Promise<ItemSnapshot & { nameId?: number | null }> {
+    const [exact, nameId] = await Promise.all([
+      this.searchItemExact(item.appId, item.marketHashName).catch((e) => {
+        this.log(`精确查询失败：${errMsg(e)}`);
+        return null;
+      }),
+      item.nameId
+        ? Promise.resolve(item.nameId)
+        : this.resolveNameId(item.appId, item.marketHashName).catch(() => null),
     ]);
-    if (h.status === "rejected" && l.status === "rejected") {
-      throw l.reason instanceof Error ? l.reason : new Error(errMsg(l.reason));
+
+    let histogram: Histogram | null = null;
+    if (nameId) {
+      try {
+        histogram = await this.getHistogram(item.appId, nameId);
+      } catch (e) {
+        this.log(`histogram 获取失败（已降级）：${errMsg(e)}`);
+      }
     }
-    if (h.status === "rejected") this.log(`histogram 获取失败（已降级）：${errMsg(h.reason)}`);
-    if (l.status === "rejected") this.log(`在售列表获取失败（已降级）：${errMsg(l.reason)}`);
+
+    if (!exact && !histogram) {
+      throw new Error(`未获取到该物品的任何市场数据（请确认物品名正确）：${item.marketHashName}`);
+    }
+
     return {
-      histogram: h.status === "fulfilled" ? h.value : null,
-      listings: l.status === "fulfilled" ? l.value.listings : [],
-      totalListings: l.status === "fulfilled" ? l.value.totalCount : null,
+      histogram,
+      sellCount: exact?.sellCount ?? null,
+      sellPrice: exact?.sellPrice ?? null,
       fetchedAt: Date.now(),
       nameId,
     };

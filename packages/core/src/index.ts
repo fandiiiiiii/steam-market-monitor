@@ -10,11 +10,12 @@ export {
   parseMarketUrl,
   parsePriceString,
   parseSearchResults,
+  parseSearchResultsJson,
   parseSellRows,
   splitListingBlocks,
   extractNameId,
 } from "./steam/parse.ts";
-export type { ItemSearchResult } from "./steam/parse.ts";
+export type { ItemSearchResult, SteamSearchResultEntry } from "./steam/parse.ts";
 export { type KVStorage } from "./storage/kv.ts";
 export { MemoryKV } from "./storage/memory.ts";
 export { FileKV } from "./storage/file.ts";

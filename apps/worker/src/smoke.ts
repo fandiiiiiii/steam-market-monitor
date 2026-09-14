@@ -15,7 +15,7 @@ import {
  * 全链路冒烟测试（不依赖真实 Steam / 企业微信，也不依赖外部网络）：
  * 1. 进程内起 mock Steam 服务器与 mock 企业微信服务器
  * 2. 第一轮巡检建立基线（不推送）
- * 3. mock 数据里出现新出售单 + 求购变化
+ * 3. mock 数据里出现新上架（数量+1、最低价下降）+ 求购变化
  * 4. 第二轮巡检应检测到事件并推送 markdown 到 mock 企业微信
  * 运行：pnpm smoke
  */
@@ -24,43 +24,20 @@ const APP_ID = 1203220;
 const HASH = "Star - Dragon's Bane(Non-CN)";
 
 const state = {
-  listings: [{ listingId: "1001", price: 1000 }],
+  count: 1,
+  price: 1000,
   buyGraph: [["800.00", 2, "2 orders @ ¥800.00"]],
   sellGraph: [["1000.00", 1, "1 order @ ¥1000.00"]],
 };
-
-function rowHtml(listingId: string, price: number): string {
-  return `<div class="market_listing_row market_recent_listing_row" id="listing_${listingId}_999${listingId}">
-    <div class="market_listing_item_name_block">
-      <a href="https://steamcommunity.com/market/listings/${APP_ID}/${encodeURIComponent(HASH)}" class="market_listing_item_name_link">
-        <span class="market_listing_item_name">${HASH}</span>
-      </a>
-    </div>
-    <span class="market_listing_price market_listing_price_with_fee">¥ ${price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-  </div>`;
-}
 
 function mockSteamServer(): Promise<Server> {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? "/", "http://127.0.0.1");
       res.setHeader("content-type", "application/json; charset=utf-8");
-      if (url.pathname.endsWith("/render/") || url.pathname.endsWith("/render")) {
-        res.end(
-          JSON.stringify({
-            success: true,
-            total_count: state.listings.length,
-            results_html: state.listings.map((l) => rowHtml(l.listingId, l.price)).join("\n"),
-          }),
-        );
-        return;
-      }
       if (url.pathname.startsWith("/market/listings/")) {
         res.setHeader("content-type", "text/html; charset=utf-8");
-        const html = `<html><head><script>Market_LoadOrderSpread( 123456 );</script></head><body>
-          ${state.listings.map((l) => rowHtml(l.listingId, l.price)).join("\n")}
-        </body></html>`;
-        res.end(html);
+        res.end(`<html><head><script>Market_LoadOrderSpread( 123456 );</script></head><body></body></html>`);
         return;
       }
       if (url.pathname === "/market/itemordershistogram") {
@@ -81,8 +58,20 @@ function mockSteamServer(): Promise<Server> {
         res.end(
           JSON.stringify({
             success: true,
-            total_count: state.listings.length,
-            results_html: state.listings.map((l) => rowHtml(l.listingId, l.price)).join("\n"),
+            start: 0,
+            pagesize: 10,
+            total_count: 1,
+            searchdata: { query: HASH, total_count: 1 },
+            results: [
+              {
+                name: HASH,
+                hash_name: HASH,
+                sell_listings: state.count,
+                sell_price: Math.round(state.price * 100),
+                app_icon: "https://example.com/icon.jpg",
+                app_name: "永劫无间",
+              },
+            ],
           }),
         );
         return;
@@ -156,8 +145,9 @@ async function main(): Promise<void> {
     assert(r1.pushed === 0, `首轮应不推送，实际推送 ${r1.pushed}`);
     assert(received.length === 0, "首轮不应有任何 webhook 调用");
 
-    // 模拟市场变化：新出售单 950 + 求购新价位 850 / 800 数量+1
-    state.listings.push({ listingId: "1002", price: 950 });
+    // 模拟市场变化：新上架（数量+1、最低价 950）+ 求购新价位 850 / 800 数量+1
+    state.count = 2;
+    state.price = 950;
     state.sellGraph = [
       ["950.00", 1, "1 order @ ¥950.00"],
       ["1000.00", 1, "1 order @ ¥1000.00"],
@@ -185,7 +175,7 @@ async function main(): Promise<void> {
     );
     assert(types.includes("buy_order_change"), `事件应包含 buy_order_change，实际 ${types.join(",")}`);
 
-    console.log("\n✅ 冒烟测试通过：基线静默 → 新上架/求购变化检测 → 企业微信推送，全链路正常");
+    console.log("\n✅ 冒烟测试通过：基线静默 → 新上架/降价/求购变化检测 → 企业微信推送，全链路正常");
     console.log(`   第二轮事件：${types.join(", ")}`);
     console.log(`   推送内容预览：\n${body.markdown.content.split("\n").slice(0, 6).join("\n")}`);
   } finally {

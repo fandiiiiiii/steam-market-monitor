@@ -5,6 +5,7 @@ import {
   parseMarketUrl,
   parsePriceString,
   parseSearchResults,
+  parseSearchResultsJson,
   parseSellRows,
 } from "../src/index.ts";
 
@@ -34,6 +35,33 @@ describe("parsePriceString", () => {
     assert.equal(parsePriceString("$0.15"), 0.15);
     assert.equal(parsePriceString("无"), null);
     assert.equal(parsePriceString(null), null);
+  });
+});
+
+describe("parseSearchResultsJson（新版结构化搜索接口）", () => {
+  it("解析 results 数组并换算价格单位", () => {
+    const results = parseSearchResultsJson([
+      {
+        name: "谪星·绚妙虹流(国服)",
+        hash_name: "Star - Rainbow Flow(CN)",
+        sell_listings: 71,
+        sell_price: 21094,
+        app_icon: "https://example.com/icon.jpg",
+      },
+      { name: "缺字段的条目" },
+      null,
+    ]);
+    assert.equal(results.length, 1);
+    assert.equal(results[0].marketHashName, "Star - Rainbow Flow(CN)");
+    assert.equal(results[0].name, "谪星·绚妙虹流(国服)");
+    assert.equal(results[0].sellListings, 71);
+    assert.equal(results[0].sellPrice, 210.94);
+    assert.equal(results[0].iconUrl, "https://example.com/icon.jpg");
+  });
+
+  it("非数组输入返回空", () => {
+    assert.deepEqual(parseSearchResultsJson(null), []);
+    assert.deepEqual(parseSearchResultsJson({}), []);
   });
 });
 

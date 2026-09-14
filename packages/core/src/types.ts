@@ -50,7 +50,7 @@ export interface Settings {
   quietHoursEnd?: string | null;
 }
 
-/** 单条出售单 */
+/** 单条出售单（保留类型定义，当前监控使用聚合数量/价格，不再逐条解析） */
 export interface SellListing {
   listingId: string;
   assetId?: string;
@@ -72,12 +72,13 @@ export interface Histogram {
   buyGraph: HistogramPoint[];
 }
 
-/** 一轮抓取得到的物品快照 */
+/** 一轮抓取得到的物品快照（基于 Steam 官方搜索接口的聚合数据） */
 export interface ItemSnapshot {
   histogram: Histogram | null;
-  listings: SellListing[];
-  /** 市场在售总数（可能为 null，页面降级路径下不可知） */
-  totalListings: number | null;
+  /** 在售数量（search 接口 sell_listings），null = 无数据 */
+  sellCount: number | null;
+  /** 最低售价（search 接口 sell_price，已换算为主币种单位），null = 无在售/无数据 */
+  sellPrice: number | null;
   fetchedAt: number;
 }
 
@@ -99,10 +100,8 @@ export interface EventRecord extends DetectEvent {
 /** 每个物品的引擎状态（用于去重/diff） */
 export interface EngineState {
   initialized: boolean;
-  /** 已见过的出售单 listingId -> {price, at} */
-  seen: Record<string, { price: number; at: number }>;
-  lastMinPrice: number | null;
-  lastMinListingId: string | null;
+  lastSellCount: number | null;
+  lastSellPrice: number | null;
   highestBuy: number | null;
   buyGraph: HistogramPoint[];
   buyFingerprint: string | null;

@@ -37,13 +37,8 @@ const SETTINGS = {
   quietHoursEnd: null,
 };
 
-function snapAt(listings: Array<[string, number]>, at: number): ItemSnapshot {
-  return {
-    histogram: null,
-    listings: listings.map(([listingId, price]) => ({ listingId, price })),
-    totalListings: listings.length,
-    fetchedAt: at,
-  };
+function snapAt(sellCount: number, sellPrice: number, at: number): ItemSnapshot {
+  return { histogram: null, sellCount, sellPrice, fetchedAt: at };
 }
 
 function makeSend() {
@@ -61,12 +56,9 @@ describe("runRound", () => {
     await store.saveItems([item()]);
     await store.saveSettings(SETTINGS);
     let clock = 10_000;
-    const snapshots: ItemSnapshot[] = [
-      snapAt([["a", 1000]], clock),
-      snapAt([["a", 1000], ["b", 950]], clock + 60_000),
-    ];
+    const snapshots: ItemSnapshot[] = [snapAt(1, 1000, clock), snapAt(2, 950, clock + 60_000)];
     const steam = {
-      snapshot: async () => snapshots.shift() ?? snapAt([["a", 1000]], clock),
+      snapshot: async () => snapshots.shift() ?? snapAt(1, 1000, clock),
     };
     const { send, calls } = makeSend();
 
@@ -92,11 +84,11 @@ describe("runRound", () => {
     await store.saveSettings(SETTINGS);
     let clock = 10_000;
     const snapshots: ItemSnapshot[] = [
-      snapAt([["a", 1000]], clock),
-      snapAt([["a", 1000], ["b", 950]], clock + 30_000),
-      snapAt([["a", 1000], ["b", 950], ["c", 900]], clock + 60_000),
+      snapAt(1, 1000, clock),
+      snapAt(2, 950, clock + 30_000),
+      snapAt(3, 900, clock + 60_000),
     ];
-    const steam = { snapshot: async () => snapshots.shift() ?? snapAt([["a", 1000]], clock) };
+    const steam = { snapshot: async () => snapshots.shift() ?? snapAt(1, 1000, clock) };
     const { send, calls } = makeSend();
     const now = () => clock;
     await runRound({ store, steam, notifier: { send }, now });
@@ -115,7 +107,7 @@ describe("runRound", () => {
       quietHoursStart: "23:00",
       quietHoursEnd: "08:00",
     });
-    const steam = { snapshot: async () => snapAt([["a", 1000]], 1000) };
+    const steam = { snapshot: async () => snapAt(1, 1000, 1000) };
     const { send } = makeSend();
     // 用 UTC 时间构造“北京时间 23:30”（= UTC 15:30），验证按北京时间进入免打扰
     const utc = Date.UTC(2026, 0, 1, 15, 30, 0);
@@ -129,7 +121,7 @@ describe("runRound", () => {
     await store.saveItems([item()]);
     await store.saveSettings({ ...SETTINGS, pollEnabled: false });
     let called = 0;
-    const steam = { snapshot: async () => (called++, snapAt([["a", 1000]], 1000)) };
+    const steam = { snapshot: async () => (called++, snapAt(1, 1000, 1000)) };
     const { send } = makeSend();
     const r = await runRound({ store, steam, notifier: { send }, now: () => 1000 });
     assert.equal(r.skipped, true);
@@ -145,7 +137,7 @@ describe("runRound", () => {
     const steam = {
       snapshot: async () => {
         if (failing) throw new Error("Steam 超时");
-        return snapAt([["a", 1000]], clock);
+        return snapAt(1, 1000, clock);
       },
     };
     const { send, calls } = makeSend();

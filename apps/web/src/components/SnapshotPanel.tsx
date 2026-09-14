@@ -1,14 +1,14 @@
 "use client";
 
-import type { Histogram, SellListing } from "@steam-monitor/core";
+import type { Histogram } from "@steam-monitor/core";
 import { fmtPrice, fmtTime } from "@/lib/client";
 import { Alert } from "./ui";
 
 interface Props {
   snapshot: {
     histogram: Histogram | null;
-    listings: SellListing[];
-    totalListings: number | null;
+    sellCount: number | null;
+    sellPrice: number | null;
     fetchedAt: number;
     nameId?: number | null;
   };
@@ -20,7 +20,7 @@ interface Props {
 
 export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }: Props) {
   const h = snapshot.histogram;
-  const listings = snapshot.listings ?? [];
+  const sellPrice = snapshot.sellPrice ?? h?.lowestSellOrder ?? null;
   const maxQty = Math.max(1, ...(h?.sellGraph ?? []).map((p) => p.quantity), ...(h?.buyGraph ?? []).map((p) => p.quantity));
 
   return (
@@ -39,26 +39,24 @@ export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }
 
       {error && <Alert kind="err">{error}</Alert>}
 
-      {h && (
-        <div className="stat-grid">
-          <div className="stat">
-            <div className="k">最低售价</div>
-            <div className="v orange">{h.lowestSellOrder != null ? `¥${fmtPrice(h.lowestSellOrder)}` : "无"}</div>
-          </div>
-          <div className="stat">
-            <div className="k">最高求购价</div>
-            <div className="v green">{h.highestBuyOrder != null ? `¥${fmtPrice(h.highestBuyOrder)}` : "无"}</div>
-          </div>
-          <div className="stat">
-            <div className="k">在售数量</div>
-            <div className="v">{h.sellOrderCount}</div>
-          </div>
-          <div className="stat">
-            <div className="k">求购数量</div>
-            <div className="v">{h.buyOrderCount}</div>
-          </div>
+      <div className="stat-grid">
+        <div className="stat">
+          <div className="k">最低售价</div>
+          <div className="v orange">{sellPrice != null ? `¥${fmtPrice(sellPrice)}` : "无在售"}</div>
         </div>
-      )}
+        <div className="stat">
+          <div className="k">在售数量</div>
+          <div className="v">{snapshot.sellCount ?? "-"}</div>
+        </div>
+        <div className="stat">
+          <div className="k">最高求购价</div>
+          <div className="v green">{h?.highestBuyOrder != null ? `¥${fmtPrice(h.highestBuyOrder)}` : "无"}</div>
+        </div>
+        <div className="stat">
+          <div className="k">求购数量</div>
+          <div className="v">{h?.buyOrderCount ?? "-"}</div>
+        </div>
+      </div>
 
       {h && (
         <div className="form-grid">
@@ -91,32 +89,7 @@ export function SnapshotPanel({ snapshot, loading, error, onRefresh, marketUrl }
         </div>
       )}
 
-      <div className="mt8">
-        <div className="muted mb8">
-          在售列表（最低价前 {listings.length} 条
-          {snapshot.totalListings != null ? ` / 共 ${snapshot.totalListings} 条` : ""}）
-        </div>
-        {listings.length === 0 ? (
-          <div className="muted">暂无在售或列表获取失败</div>
-        ) : (
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>价格</th>
-                <th>listingId</th>
-              </tr>
-            </thead>
-            <tbody>
-              {listings.map((l) => (
-                <tr key={l.listingId}>
-                  <td>¥{fmtPrice(l.price)}</td>
-                  <td className="mono">{l.listingId}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {!h && <div className="muted mt8">求购柱状图暂不可用（需要从物品页解析 nameid，首次巡检后一般可恢复）</div>}
     </div>
   );
 }

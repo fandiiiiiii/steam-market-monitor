@@ -1,6 +1,6 @@
 "use client";
 
-import type { Histogram, MonitorItem, SellListing } from "@steam-monitor/core";
+import type { Histogram, MonitorItem } from "@steam-monitor/core";
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiSend } from "@/lib/client";
 import { Alert } from "./ui";
@@ -14,13 +14,13 @@ interface Props {
 
 interface SnapshotView {
   histogram: Histogram | null;
-  listings: SellListing[];
-  totalListings: number | null;
+  sellCount: number | null;
+  sellPrice: number | null;
   fetchedAt: number;
   nameId?: number | null;
 }
 
-const EMPTY_SNAP: SnapshotView = { histogram: null, listings: [], totalListings: null, fetchedAt: 0 };
+const EMPTY_SNAP: SnapshotView = { histogram: null, sellCount: null, sellPrice: null, fetchedAt: 0 };
 
 export function ItemDetail({ item, onSaved, onDeleted }: Props) {
   const [form, setForm] = useState({

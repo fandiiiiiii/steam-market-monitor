@@ -66,6 +66,41 @@ export interface ItemSearchResult {
   marketHashName: string;
   name: string;
   iconUrl?: string;
+  /** 在售数量（官方搜索接口返回） */
+  sellListings?: number;
+  /** 最低售价（官方搜索接口返回，已换算为主币种单位） */
+  sellPrice?: number;
+}
+
+/** 官方搜索接口（新结构化格式）的单条结果 */
+export interface SteamSearchResultEntry {
+  name?: string;
+  hash_name?: string;
+  app_icon?: string;
+  sell_listings?: number;
+  sell_price?: number;
+}
+
+/**
+ * 解析新版市场搜索接口的 results 数组（结构化 JSON，不再是 HTML）。
+ * 注意：官方 sell_price 以"分"为单位（如 21094 = 210.94），这里换算成主币种单位。
+ */
+export function parseSearchResultsJson(entries: unknown): ItemSearchResult[] {
+  if (!Array.isArray(entries)) return [];
+  const out: ItemSearchResult[] = [];
+  for (const e of entries) {
+    const entry = (e ?? {}) as SteamSearchResultEntry;
+    if (typeof entry.hash_name !== "string" || !entry.hash_name) continue;
+    const sellPriceRaw = Number(entry.sell_price);
+    out.push({
+      marketHashName: entry.hash_name,
+      name: typeof entry.name === "string" && entry.name ? entry.name : entry.hash_name,
+      iconUrl: entry.app_icon,
+      sellListings: Number.isFinite(Number(entry.sell_listings)) ? Number(entry.sell_listings) : undefined,
+      sellPrice: Number.isFinite(sellPriceRaw) ? sellPriceRaw / 100 : undefined,
+    });
+  }
+  return out;
 }
 
 /**

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const appId = Number(req.nextUrl.searchParams.get("appid") ?? 1203220);
   const q = req.nextUrl.searchParams.get("q") ?? "";
   const queryPart = q.trim() ? `query=${encodeURIComponent(q.trim())}&` : "";
-  const url = `https://steamcommunity.com/market/search/render/?${queryPart}start=0&count=100&search_descriptions=0&appid=${appId}&currency=23&l=schinese&norender=1`;
+  const url = `https://steamcommunity.com/market/search/render/?${queryPart}start=0&count=100&search_descriptions=0&appid=${appId}&currency=23&country=CN&l=schinese&norender=1`;
   try {
     const res = await fetch(url, {
       headers: {

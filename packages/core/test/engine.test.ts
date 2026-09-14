@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   detectChanges,
+  stateFingerprint,
   type EngineState,
   type Histogram,
   type ItemSnapshot,
@@ -12,8 +13,8 @@ function item(overrides: Partial<MonitorItem> = {}): MonitorItem {
   return {
     id: "item-1",
     appId: 1203220,
-    marketHashName: "Star - Dragon's Bane(Non-CN)",
-    displayName: "长剑谪星·信手斩龙（国际服）",
+    marketHashName: "Star - Rainbow Flow(CN)",
+    displayName: "谪星·绚妙虹流（国服）",
     enabled: true,
     watchSell: true,
     watchBuy: true,
@@ -28,14 +29,15 @@ function item(overrides: Partial<MonitorItem> = {}): MonitorItem {
 }
 
 function snap(
-  listings: Array<[string, number]>,
+  sellCount: number | null,
+  sellPrice: number | null,
   histogram?: Histogram | null,
   at = 1000,
 ): ItemSnapshot {
   return {
     histogram: histogram ?? null,
-    listings: listings.map(([listingId, price]) => ({ listingId, price })),
-    totalListings: listings.length,
+    sellCount,
+    sellPrice,
     fetchedAt: at,
   };
 }
@@ -57,87 +59,72 @@ function hist(overrides: Partial<Histogram> = {}): Histogram {
 
 describe("detectChanges", () => {
   it("首轮静默建立基线，不产生事件", () => {
-    const { events, next } = detectChanges(null, snap([["a", 1000], ["b", 1100]], hist()), item());
+    const { events, next } = detectChanges(null, snap(10, 1000, hist()), item());
     assert.deepEqual(events, []);
     assert.equal(next.initialized, true);
-    assert.equal(next.lastMinPrice, 1000);
-    assert.equal(next.lastMinListingId, "a");
-    assert.deepEqual(Object.keys(next.seen), ["a", "b"]);
+    assert.equal(next.lastSellCount, 10);
+    assert.equal(next.lastSellPrice, 1000);
   });
 
-  it("检测新上架出售单", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
-    const { events } = detectChanges(prev, snap([["a", 1000], ["b", 950]], hist()), item());
-    assert.equal(events.length, 1);
-    assert.equal(events[0].type, "new_listing");
-    assert.ok(events[0].detail.includes("950"));
+  it("在售数量增加 → 新上架事件", () => {
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
+    const { events } = detectChanges(prev, snap(11, 1000, hist()), item());
+    assert.deepEqual(events.map((e) => e.type), ["new_listing"]);
+    assert.ok(events[0].detail.includes("10 → 11"));
   });
 
-  it("maxPrice 过滤新上架提醒", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
-    const withMax = item({ maxPrice: 900 });
-    assert.deepEqual(detectChanges(prev, snap([["a", 1000], ["b", 950]], hist()), withMax).events, []);
-    const hit = detectChanges(prev, snap([["a", 1000], ["b", 950], ["c", 850]], hist()), withMax);
-    assert.equal(hit.events.length, 1);
-    assert.ok(hit.events[0].detail.includes("850"));
+  it("maxPrice 过滤新上架提醒（按当前最低价判断）", () => {
+    const i = item({ maxPrice: 900 });
+    const prev = detectChanges(null, snap(10, 1000, hist()), i).next;
+    // 数量增加但最低价 1000 高于阈值 → 不提醒
+    assert.deepEqual(detectChanges(prev, snap(11, 1000, hist()), i).events, []);
+    // 最低价 850 ≤ 900 → 提醒
+    const hit = detectChanges(prev, snap(11, 850, hist()), i);
+    assert.deepEqual(hit.events.map((e) => e.type), ["new_listing"]);
   });
 
   it("watchSell=false 时不提醒新上架", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
-    const { events } = detectChanges(prev, snap([["a", 1000], ["b", 950]], hist()), item({ watchSell: false }));
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
+    const { events } = detectChanges(prev, snap(11, 1000, hist()), item({ watchSell: false }));
     assert.deepEqual(events, []);
   });
 
-  it("降价达标才提醒，达标时优先报降价不重复报新上架", () => {
+  it("降价达标优先报降价，不重复报新上架", () => {
     const i = item({ priceDropPct: 5 });
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), i).next;
-    // 降 10%（900）达标：仅报 price_drop，b 不重复计入新上架
-    const big = detectChanges(prev, snap([["a", 1000], ["b", 900]], hist({ lowestSellOrder: 900 })), i);
+    const prev = detectChanges(null, snap(10, 1000, hist()), i).next;
+    // 数量+1 且价格降 10% → 只报 price_drop
+    const big = detectChanges(prev, snap(11, 900, hist({ lowestSellOrder: 900 })), i);
     assert.deepEqual(big.events.map((e) => e.type), ["price_drop"]);
     assert.ok(big.events[0].detail.includes("900"));
-    // 降 3%（970）不达标：按普通新上架报
-    const small = detectChanges(prev, snap([["a", 1000], ["b", 970]], hist({ lowestSellOrder: 970 })), i);
-    assert.deepEqual(small.events.map((e) => e.type), ["new_listing"]);
+    // 数量不变、价格降 3%（不达标）→ 无事件
+    const small = detectChanges(prev, snap(10, 970, hist({ lowestSellOrder: 970 })), i);
+    assert.deepEqual(small.events, []);
   });
 
-  it("降价达标且同时有其他新单时，两种事件分别报告", () => {
-    const i = item({ priceDropPct: 5 });
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), i).next;
-    const { events } = detectChanges(
-      prev,
-      snap([["a", 1000], ["b", 900], ["c", 1050]], hist({ lowestSellOrder: 900 })),
-      i,
-    );
-    assert.deepEqual(events.map((e) => e.type), ["new_listing", "price_drop"]);
-    const nl = events.find((e) => e.type === "new_listing")!;
-    assert.ok(nl.detail.includes("1 条"));
-    assert.ok(nl.detail.includes("1,050.00"));
-  });
-
-  it("同 listingId 出现两次不会重复报新上架", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
-    const { events, next } = detectChanges(prev, snap([["a", 1000]], hist()), item());
-    assert.deepEqual(events, []);
-    assert.equal(next.seen["a"].price, 1000);
-  });
-
-  it("检测最低价被秒", () => {
+  it("在售数量减少且最低价回升 → 被秒事件", () => {
     const i = item({ snipedAlert: true });
-    const prev = detectChanges(null, snap([["a", 1000], ["b", 1100]], hist()), i).next;
-    const { events } = detectChanges(prev, snap([["b", 1100]], hist({ lowestSellOrder: 1100 })), i);
+    const prev = detectChanges(null, snap(10, 1000, hist()), i).next;
+    const { events } = detectChanges(prev, snap(9, 1100, hist({ lowestSellOrder: 1100 })), i);
     assert.deepEqual(events.map((e) => e.type), ["sniped"]);
-    assert.ok(events[0].detail.includes("1,000.00"));
+    assert.ok(events[0].detail.includes("10 → 9"));
   });
 
-  it("最低价消失但新低出现时不报被秒", () => {
+  it("数量减少但最低价未回升 → 不报被秒（卖的是非最低价单）", () => {
     const i = item({ snipedAlert: true });
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), i).next;
-    const { events } = detectChanges(prev, snap([["b", 950]], hist({ lowestSellOrder: 950 })), i);
-    assert.deepEqual(events.map((e) => e.type), ["new_listing"]);
+    const prev = detectChanges(null, snap(10, 1000, hist()), i).next;
+    const { events } = detectChanges(prev, snap(9, 1000, hist()), i);
+    assert.deepEqual(events, []);
+  });
+
+  it("数量减少且无在售（卖空）→ 被秒事件", () => {
+    const i = item({ snipedAlert: true });
+    const prev = detectChanges(null, snap(1, 1000, hist()), i).next;
+    const { events } = detectChanges(prev, snap(0, null, hist()), i);
+    assert.deepEqual(events.map((e) => e.type), ["sniped"]);
   });
 
   it("检测求购新增价位", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
     const h2 = hist({
       buyGraph: [
         { price: 800, quantity: 2 },
@@ -146,15 +133,15 @@ describe("detectChanges", () => {
       ],
       highestBuyOrder: 850,
     });
-    const { events } = detectChanges(prev, snap([["a", 1000]], h2), item());
+    const { events } = detectChanges(prev, snap(10, 1000, h2), item());
     assert.deepEqual(events.map((e) => e.type), ["buy_order_change"]);
     assert.ok(events[0].detail.includes("850"));
   });
 
   it("检测求购数量增加与最高求购价上升", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
     const h2 = hist({ buyGraph: [{ price: 800, quantity: 5 }], highestBuyOrder: 900 });
-    const { events } = detectChanges(prev, snap([["a", 1000]], h2), item());
+    const { events } = detectChanges(prev, snap(10, 1000, h2), item());
     const e = events.find((x) => x.type === "buy_order_change");
     assert.ok(e);
     assert.ok(e!.detail.includes("数量增加"));
@@ -164,44 +151,40 @@ describe("detectChanges", () => {
 
   it("minBuyPrice 过滤求购提醒", () => {
     const i = item({ minBuyPrice: 850 });
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), i).next;
+    const prev = detectChanges(null, snap(10, 1000, hist()), i).next;
     const h2 = hist({ buyGraph: [{ price: 800, quantity: 2 }, { price: 700, quantity: 5 }], highestBuyOrder: 900 });
-    const { events } = detectChanges(prev, snap([["a", 1000]], h2), i);
+    const { events } = detectChanges(prev, snap(10, 1000, h2), i);
     const e = events.find((x) => x.type === "buy_order_change");
     assert.ok(e);
     assert.ok(!e!.detail.includes("数量增加"));
   });
 
   it("watchBuy=false 时不检测求购", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
     const h2 = hist({ buyGraph: [{ price: 800, quantity: 2 }, { price: 850, quantity: 3 }] });
-    const { events } = detectChanges(prev, snap([["a", 1000]], h2), item({ watchBuy: false }));
+    const { events } = detectChanges(prev, snap(10, 1000, h2), item({ watchBuy: false }));
     assert.deepEqual(events, []);
   });
 
   it("histogram 缺失时不检测求购且不丢状态", () => {
-    const prev = detectChanges(null, snap([["a", 1000]], hist()), item()).next;
-    const { events, next } = detectChanges(prev, snap([["a", 1000], ["b", 950]], null), item());
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
+    const { events, next } = detectChanges(prev, snap(11, 950, null), item());
     assert.deepEqual(events.map((e) => e.type), ["new_listing"]);
     assert.equal(next.buyFingerprint, prev.buyFingerprint);
   });
 
-  it("去重集合超限时淘汰最旧记录", () => {
-    const many: Record<string, { price: number; at: number }> = {};
-    for (let i = 0; i < 500; i++) many[`old-${i}`] = { price: 1000 + i, at: 1 };
-    const prev: EngineState = {
-      initialized: true,
-      seen: many,
-      lastMinPrice: 1000,
-      lastMinListingId: "old-0",
-      highestBuy: null,
-      buyGraph: [],
-      buyFingerprint: "[]",
-      lastSeenAt: 2,
-    };
-    const { next } = detectChanges(prev, snap([["new-1", 500], ["new-2", 600]], null, 5000), item());
-    assert.equal(Object.keys(next.seen).length, 500);
-    assert.ok(next.seen["new-1"]);
-    assert.equal(next.seen["old-0"], undefined);
+  it("状态指纹在平稳期保持稳定（供 runner 判断是否写回）", () => {
+    const prev = detectChanges(null, snap(10, 1000, hist()), item()).next;
+    const { next } = detectChanges(prev, snap(10, 1000, hist()), item());
+    assert.equal(stateFingerprint(next), stateFingerprint({ ...prev, fp: null, lastSeenAt: 9999 }));
+  });
+});
+
+describe("EngineState 兼容性", () => {
+  it("旧版本状态（无新字段）可正常初始化", () => {
+    const legacy = { initialized: true, seen: {}, lastMinPrice: 5 } as unknown as EngineState;
+    const { events } = detectChanges(legacy, snap(3, 500, null), item());
+    // 旧状态缺失 lastSellCount 等字段时按 null 处理，不应抛错
+    assert.deepEqual(events, []);
   });
 });
