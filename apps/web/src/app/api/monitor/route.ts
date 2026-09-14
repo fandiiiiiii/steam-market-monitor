@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { runRound } from "@steam-monitor/core";
 import { monitorAuthorized } from "@/lib/auth";
-import { ensureDefaults, notifier, steam, store } from "@/lib/singletons";
+import { applySettingsToSteam, notifier, steam, store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,14 +16,14 @@ export const maxDuration = 60;
  */
 export async function GET(req: NextRequest) {
   if (!monitorAuthorized(req)) return NextResponse.json({ error: "未授权" }, { status: 401 });
-  await ensureDefaults();
+  await applySettingsToSteam();
   const summary = await runRound({ store, steam, notifier, onLog: (m) => console.log(m) });
   return NextResponse.json(summary);
 }
 
 export async function POST(req: NextRequest) {
   if (!monitorAuthorized(req)) return NextResponse.json({ error: "未授权" }, { status: 401 });
-  await ensureDefaults();
+  await applySettingsToSteam();
   const summary = await runRound({ store, steam, notifier, onLog: (m) => console.log(m) });
   return NextResponse.json(summary);
 }

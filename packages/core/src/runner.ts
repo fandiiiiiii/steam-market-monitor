@@ -105,8 +105,10 @@ export async function runRound(deps: RunnerDeps): Promise<RoundSummary> {
       health.itemsChecked += 1;
       try {
         const snap = await steam.snapshot(item);
-        // 搜索接口对匿名请求返回美元价格，按自动汇率换算为目标币种（阈值/告警统一口径）
-        if (snap.sellPrice != null) {
+        // 价格币种策略：带 Cookie 时接口返回账号原生币种（与目标一致则直接用）；
+        // 匿名/美元时按自动汇率换算为目标币种。
+        const pc = snap.sellPriceCurrency ?? "USD";
+        if (snap.sellPrice != null && pc !== settings.currency && pc === "USD") {
           snap.sellPrice = Math.round(snap.sellPrice * rate * 100) / 100;
         }
         // 柱状图若为美元（price_prefix=$），同样换算

@@ -15,6 +15,7 @@ const store = new Store(new FileKV(dataFile));
 const steam = new SteamClient({
   currency: Number(process.env.STEAM_CURRENCY ?? 23),
   proxyUrl: process.env.HTTP_PROXY || process.env.HTTPS_PROXY,
+  cookies: process.env.STEAM_COOKIE ?? "",
   logger: (m) => console.log(m),
 });
 const notifier = new Notifier();

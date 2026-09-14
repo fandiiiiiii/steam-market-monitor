@@ -23,6 +23,7 @@ export async function GET() {
       quietHoursStart: s.quietHoursStart ?? "",
       quietHoursEnd: s.quietHoursEnd ?? "",
       currency: s.currency ?? "CNY",
+      steamCookieSet: !!s.steamCookie,
       webhookKeySet: !!s.webhookKey,
       webhookKeyMasked: maskKey(s.webhookKey),
     },
@@ -61,6 +62,12 @@ export async function PUT(req: NextRequest) {
   if (typeof body?.currency === "string" && ["CNY", "HKD", "USD"].includes(body.currency)) {
     next.currency = body.currency as Settings["currency"];
   }
+  // steamCookie：留空表示不修改；传值则覆盖
+  if (typeof body?.steamCookie === "string" && body.steamCookie.trim()) {
+    const cookie = body.steamCookie.trim();
+    if (cookie.length > 4096) return NextResponse.json({ error: "Cookie 过长" }, { status: 400 });
+    next.steamCookie = cookie;
+  }
   // webhookKey：留空表示不修改；传值则覆盖
   if (typeof body?.webhookKey === "string" && body.webhookKey.trim()) {
     const key = body.webhookKey.trim();
@@ -76,6 +83,7 @@ export async function PUT(req: NextRequest) {
       quietHoursStart: next.quietHoursStart ?? "",
       quietHoursEnd: next.quietHoursEnd ?? "",
       currency: next.currency ?? "CNY",
+      steamCookieSet: !!next.steamCookie,
       webhookKeySet: !!next.webhookKey,
       webhookKeyMasked: maskKey(next.webhookKey),
     },

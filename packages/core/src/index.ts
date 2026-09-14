@@ -9,6 +9,7 @@ export * from "./templates.ts";
 export { SteamClient, type SteamClientOptions } from "./steam/client.ts";
 export {
   parseMarketUrl,
+  parseCurrencyCode,
   parsePriceString,
   parseSearchResults,
   parseSearchResultsJson,

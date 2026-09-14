@@ -19,6 +19,8 @@ export interface SteamClientOptions {
   country?: string;
   /** HTTP(S) 代理，如 http://127.0.0.1:7890（本地运行时绕过网络限制用） */
   proxyUrl?: string;
+  /** Steam 登录 Cookie（steamLoginSecure=...; sessionid=...），用于获取真实币种价格与完整数据 */
+  cookies?: string;
   fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;
   timeoutMs?: number;
   /** 全局请求最小间隔（毫秒），用于对 Steam 接口限速 */
@@ -52,6 +54,7 @@ export class SteamClient {
   private readonly dispatcher: ProxyAgent | undefined;
   private readonly logger?: (msg: string) => void;
   private lastReqAt = 0;
+  private cookieHeader = "";
 
   constructor(opts: SteamClientOptions = {}) {
     this.baseUrl = (opts.baseUrl ?? "https://steamcommunity.com").replace(/\/+$/, "");
@@ -63,6 +66,12 @@ export class SteamClient {
     this.fetchImpl = opts.fetchImpl ?? ((url, init) => fetch(url, init));
     this.dispatcher = opts.proxyUrl ? new ProxyAgent(opts.proxyUrl) : undefined;
     this.logger = opts.logger;
+    this.cookieHeader = opts.cookies ?? "";
+  }
+
+  /** 动态更新 Cookie（云端从设置中读取后注入） */
+  setCookies(cookies: string): void {
+    this.cookieHeader = cookies;
   }
 
   private log(msg: string) {
@@ -84,6 +93,7 @@ export class SteamClient {
           accept: as === "json" ? "application/json, text/plain, */*" : "text/html, */*",
           "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
           "user-agent": DEFAULT_UA,
+          ...(this.cookieHeader ? { cookie: this.cookieHeader } : {}),
         },
         redirect: "follow",
         signal: AbortSignal.timeout(this.timeoutMs),
@@ -182,15 +192,33 @@ export class SteamClient {
     });
   }
 
-  /** 按市场名精确查询单个物品的在售数量与最低价（无该物品结果时返回 null） */
+  /**
+   * 按市场名精确查询单个物品的在售数量与最低价。
+   * - 接口请求失败：抛异常（调用方按"数据未知"处理）
+   * - 成功但无该物品结果：返回 { found: false }（视为 0 在售）
+   */
   async searchItemExact(
     appId: number,
     marketHashName: string,
-  ): Promise<{ sellCount: number | null; sellPrice: number | null } | null> {
-    const results = await this.searchItems(appId, marketHashName, 0, 100);
+  ): Promise<
+    | { found: true; sellCount: number; sellPrice: number | null; sellPriceCurrency: string | null }
+    | { found: false }
+  > {
+    const q = encodeURIComponent(marketHashName);
+    const json = await this.http(
+      `/market/search/render/?query=${q}&start=0&count=100&search_descriptions=0&appid=${appId}&currency=${this.currency}&country=${this.country}&l=${this.language}&norender=1`,
+      "json",
+    );
+    if (!json || json.success !== true) return { found: false };
+    const results = parseSearchResultsJson(json.results);
     const hit = results.find((r) => r.marketHashName === marketHashName);
-    if (!hit) return null;
-    return { sellCount: hit.sellListings ?? null, sellPrice: hit.sellPrice ?? null };
+    if (!hit) return { found: false };
+    return {
+      found: true,
+      sellCount: hit.sellListings ?? 0,
+      sellPrice: hit.sellPrice ?? null,
+      sellPriceCurrency: hit.sellPriceCurrency ?? null,
+    };
   }
 
   /**
@@ -230,11 +258,17 @@ export class SteamClient {
   async snapshot(
     item: Pick<MonitorItem, "appId" | "marketHashName" | "nameId">,
   ): Promise<ItemSnapshot & { nameId?: number | null }> {
-    const [exact, nameId] = await Promise.all([
-      this.searchItemExact(item.appId, item.marketHashName).catch((e) => {
-        this.log(`精确查询失败：${errMsg(e)}`);
-        return null;
-      }),
+    let exact:
+      | { found: true; sellCount: number; sellPrice: number | null; sellPriceCurrency: string | null }
+      | { found: false }
+      | null = null;
+    try {
+      exact = await this.searchItemExact(item.appId, item.marketHashName);
+    } catch (e) {
+      this.log(`精确查询失败（数据视为未知）：${errMsg(e)}`);
+    }
+
+    const [nameId] = await Promise.all([
       item.nameId
         ? Promise.resolve(item.nameId)
         : this.resolveNameId(item.appId, item.marketHashName).catch(() => null),
@@ -249,14 +283,17 @@ export class SteamClient {
       }
     }
 
-    if (!exact && !histogram) {
+    const found = exact?.found === true;
+    if (!found && !histogram && exact === null) {
       throw new Error(`未获取到该物品的任何市场数据（请确认物品名正确）：${item.marketHashName}`);
     }
 
     return {
       histogram,
-      sellCount: exact?.sellCount ?? null,
-      sellPrice: exact?.sellPrice ?? null,
+      // found=false → 该物品当前无在售（0 件）；null → 接口失败，数据未知
+      sellCount: exact ? (found ? exact.sellCount : 0) : null,
+      sellPrice: exact && found ? exact.sellPrice : null,
+      sellPriceCurrency: exact && found ? exact.sellPriceCurrency : null,
       fetchedAt: Date.now(),
       nameId,
     };

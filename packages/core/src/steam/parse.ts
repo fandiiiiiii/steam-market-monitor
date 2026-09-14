@@ -70,6 +70,8 @@ export interface ItemSearchResult {
   sellListings?: number;
   /** 最低售价（官方搜索接口返回，已换算为主币种单位） */
   sellPrice?: number;
+  /** 价格币种代码（从 sell_price_text 尾部解析，如 USD/HKD/CNY） */
+  sellPriceCurrency?: string | null;
 }
 
 /** 官方搜索接口（新结构化格式）的单条结果 */
@@ -79,6 +81,16 @@ export interface SteamSearchResultEntry {
   app_icon?: string;
   sell_listings?: number;
   sell_price?: number;
+  sell_price_text?: string;
+}
+
+const CURRENCY_CODE_RE = /(USD|HKD|CNY|EUR|GBP|RUB|KRW|JPY|TWD)\s*$/;
+
+/** 从价格文本（如 "$210.94 USD"、"HK$7,281.49 HKD"）解析币种代码 */
+export function parseCurrencyCode(text?: string): string | null {
+  if (!text) return null;
+  const m = text.match(CURRENCY_CODE_RE);
+  return m ? m[1] : null;
 }
 
 /**
@@ -98,6 +110,7 @@ export function parseSearchResultsJson(entries: unknown): ItemSearchResult[] {
       iconUrl: entry.app_icon,
       sellListings: Number.isFinite(Number(entry.sell_listings)) ? Number(entry.sell_listings) : undefined,
       sellPrice: Number.isFinite(sellPriceRaw) ? sellPriceRaw / 100 : undefined,
+      sellPriceCurrency: parseCurrencyCode(entry.sell_price_text),
     });
   }
   return out;

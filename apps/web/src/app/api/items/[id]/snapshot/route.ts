@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { steam, store } from "@/lib/singletons";
+import { applySettingsToSteam, steam, store } from "@/lib/singletons";
 import { currencySymbol, errMsg, getUsdRate } from "@steam-monitor/core";
 
 export const runtime = "nodejs";
@@ -15,12 +15,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const item = items.find((i) => i.id === ctx.params.id);
   if (!item) return NextResponse.json({ error: "物品不存在" }, { status: 404 });
   try {
+    await applySettingsToSteam();
     const snap = await steam.snapshot(item);
     const settings = await store.getSettings();
     const symbol = currencySymbol(settings.currency);
-    // 与 runner 保持一致：搜索价格是美元，按自动汇率换算为目标币种
+    // 与 runner 一致：仅当原始币种为美元时按自动汇率换算
     const rate = await getUsdRate(store, settings.currency);
-    const conv = (n: number | null) => (n == null ? n : Math.round(n * rate * 100) / 100);
+    const pc = snap.sellPriceCurrency ?? "USD";
+    const conv = (n: number | null) =>
+      n == null ? n : pc !== settings.currency && pc === "USD" ? Math.round(n * rate * 100) / 100 : n;
     if (snap.histogram && snap.histogram.pricePrefix === "$") {
       snap.histogram.lowestSellOrder = conv(snap.histogram.lowestSellOrder);
       snap.histogram.highestBuyOrder = conv(snap.histogram.highestBuyOrder);

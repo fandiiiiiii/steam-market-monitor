@@ -48,8 +48,10 @@ export interface Settings {
   /** 免打扰时段起 "HH:mm"（按北京时间），空 = 关闭 */
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
-  /** 显示/告警币种（Steam 搜索接口对匿名请求返回美元，按自动汇率换算为目标币种） */
+  /** 显示/告警币种（优先使用 Cookie 会话的原生币种价格；无 Cookie 时按自动汇率换算） */
   currency: "CNY" | "HKD" | "USD";
+  /** Steam 登录 Cookie（steamLoginSecure=...; sessionid=...），用于获取真实币种价格与完整市场数据 */
+  steamCookie: string;
 }
 
 /** 单条出售单（保留类型定义，当前监控使用聚合数量/价格，不再逐条解析） */
@@ -79,10 +81,12 @@ export interface Histogram {
 /** 一轮抓取得到的物品快照（基于 Steam 官方搜索接口的聚合数据） */
 export interface ItemSnapshot {
   histogram: Histogram | null;
-  /** 在售数量（search 接口 sell_listings），null = 无数据 */
+  /** 在售数量（search 接口 sell_listings），null = 数据未知（接口失败） */
   sellCount: number | null;
-  /** 最低售价（search 接口 sell_price，已换算为主币种单位），null = 无在售/无数据 */
+  /** 最低售价（已按币种策略处理），null = 无在售/无数据 */
   sellPrice: number | null;
+  /** 原始价格币种（USD/HKD/CNY 等），null = 未知（视为 USD） */
+  sellPriceCurrency?: string | null;
   fetchedAt: number;
 }
 

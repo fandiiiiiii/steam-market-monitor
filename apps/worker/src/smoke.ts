@@ -137,6 +137,7 @@ async function main(): Promise<void> {
       quietHoursStart: null,
       quietHoursEnd: null,
       currency: "CNY",
+      steamCookie: "",
     });
     const steam = new SteamClient({ baseUrl: `http://127.0.0.1:${portOf(steamSrv)}`, minIntervalMs: 0 });
     const notifier = new Notifier({ baseUrl: `http://127.0.0.1:${portOf(wecomSrv)}` });

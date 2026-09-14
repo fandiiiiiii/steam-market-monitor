@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS: Settings = {
   quietHoursStart: null,
   quietHoursEnd: null,
   currency: "CNY",
+  steamCookie: "",
 };
 
 export const DEFAULT_HEALTH: Health = {

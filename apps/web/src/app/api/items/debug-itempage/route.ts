@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { store } from "@/lib/singletons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,6 +8,7 @@ export const maxDuration = 30;
 
 /**
  * 临时调试接口：侦察物品页与 render 接口（找 nameid / 求购数据来源）。
+ * 会带上设置里配置的 Steam Cookie（如有）。
  * 用法：/api/items/debug-itempage?appid=1203220&hash=Star%20-%20Rainbow%20Flow(CN)
  */
 export async function GET(req: NextRequest) {
@@ -14,19 +16,24 @@ export async function GET(req: NextRequest) {
   const hash = req.nextUrl.searchParams.get("hash") ?? "";
   if (!hash) return NextResponse.json({ error: "缺少 hash 参数" }, { status: 400 });
 
-  const out: Record<string, unknown> = {};
+  const settings = await store.getSettings();
+  const cookie = settings.steamCookie;
+  const baseHeaders: Record<string, string> = {
+    accept: "text/html, */*",
+    "accept-language": "zh-CN,zh;q=0.9",
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    ...(cookie ? { cookie } : {}),
+  };
+
+  const out: Record<string, unknown> = { cookieConfigured: !!cookie };
 
   // 1) 物品页 SSR HTML 中的 nameid
   try {
     const res = await fetch(
       `https://steamcommunity.com/market/listings/${appId}/${encodeURIComponent(hash)}?l=schinese&country=CN`,
       {
-        headers: {
-          accept: "text/html, */*",
-          "accept-language": "zh-CN,zh;q=0.9",
-          "user-agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        },
+        headers: baseHeaders,
         signal: AbortSignal.timeout(20000),
       },
     );
@@ -53,13 +60,7 @@ export async function GET(req: NextRequest) {
       const r = await fetch(
         `https://steamcommunity.com/market/listings/${appId}/${encodeURIComponent(hash)}/render/?${params}`,
         {
-          headers: {
-            accept: "application/json, text/plain, */*",
-            "accept-language": "zh-CN,zh;q=0.9",
-            "x-requested-with": "XMLHttpRequest",
-            "user-agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-          },
+          headers: { ...baseHeaders, "x-requested-with": "XMLHttpRequest", accept: "application/json, text/plain, */*" },
           signal: AbortSignal.timeout(20000),
         },
       );
@@ -90,13 +91,7 @@ export async function GET(req: NextRequest) {
     const r = await fetch(
       `https://steamcommunity.com/market/itemordershistogram?country=CN&language=schinese&currency=23&market_hash_name=${encodeURIComponent(hash)}&two_factor=0`,
       {
-        headers: {
-          accept: "application/json, text/plain, */*",
-          "accept-language": "zh-CN,zh;q=0.9",
-          "x-requested-with": "XMLHttpRequest",
-          "user-agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        },
+        headers: { ...baseHeaders, "x-requested-with": "XMLHttpRequest", accept: "application/json, text/plain, */*" },
         signal: AbortSignal.timeout(20000),
       },
     );

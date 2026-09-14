@@ -39,6 +39,7 @@ export interface SettingsView {
   quietHoursStart: string;
   quietHoursEnd: string;
   currency: "CNY" | "HKD" | "USD";
+  steamCookieSet: boolean;
   webhookKeySet: boolean;
   webhookKeyMasked: string;
 }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   extractNameId,
+  parseCurrencyCode,
   parseMarketUrl,
   parsePriceString,
   parseSearchResults,
@@ -38,6 +39,16 @@ describe("parsePriceString", () => {
   });
 });
 
+describe("parseCurrencyCode", () => {
+  it("从价格文本解析币种", () => {
+    assert.equal(parseCurrencyCode("$210.94 USD"), "USD");
+    assert.equal(parseCurrencyCode("HK$7,281.49 HKD"), "HKD");
+    assert.equal(parseCurrencyCode("¥1,234.56 CNY"), "CNY");
+    assert.equal(parseCurrencyCode("$1.23"), null);
+    assert.equal(parseCurrencyCode(undefined), null);
+  });
+});
+
 describe("parseSearchResultsJson（新版结构化搜索接口）", () => {
   it("解析 results 数组并换算价格单位", () => {
     const results = parseSearchResultsJson([
@@ -46,6 +57,7 @@ describe("parseSearchResultsJson（新版结构化搜索接口）", () => {
         hash_name: "Star - Rainbow Flow(CN)",
         sell_listings: 71,
         sell_price: 21094,
+        sell_price_text: "$210.94 USD",
         app_icon: "https://example.com/icon.jpg",
       },
       { name: "缺字段的条目" },
@@ -56,7 +68,16 @@ describe("parseSearchResultsJson（新版结构化搜索接口）", () => {
     assert.equal(results[0].name, "谪星·绚妙虹流(国服)");
     assert.equal(results[0].sellListings, 71);
     assert.equal(results[0].sellPrice, 210.94);
+    assert.equal(results[0].sellPriceCurrency, "USD");
     assert.equal(results[0].iconUrl, "https://example.com/icon.jpg");
+  });
+
+  it("港币价格文本解析", () => {
+    const results = parseSearchResultsJson([
+      { hash_name: "X", sell_price: 728149, sell_price_text: "HK$7,281.49 HKD" },
+    ]);
+    assert.equal(results[0].sellPrice, 7281.49);
+    assert.equal(results[0].sellPriceCurrency, "HKD");
   });
 
   it("非数组输入返回空", () => {

@@ -19,6 +19,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
     quietHoursStart: settings.quietHoursStart,
     quietHoursEnd: settings.quietHoursEnd,
     currency: settings.currency ?? "CNY",
+    steamCookie: "",
     webhookKey: "",
   });
   const [adminToken, setAdminTokenState] = useState("");
@@ -34,6 +35,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
       quietHoursStart: settings.quietHoursStart,
       quietHoursEnd: settings.quietHoursEnd,
       currency: settings.currency ?? "CNY",
+      steamCookie: "",
       webhookKey: "",
     });
     setAdminTokenState(getAdminToken());
@@ -51,6 +53,7 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
         quietHoursStart: form.quietHoursStart || null,
         quietHoursEnd: form.quietHoursEnd || null,
         currency: form.currency,
+        steamCookie: form.steamCookie,
         webhookKey: form.webhookKey,
       });
       setForm((f) => ({ ...f, webhookKey: "" }));
@@ -146,6 +149,24 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
           <input type="time" value={form.quietHoursEnd} onChange={(e) => setForm({ ...form, quietHoursEnd: e.target.value })} />
           <span className="hint">按北京时间计算；两端均留空则关闭；支持跨天（如 23:00 ~ 08:00）</span>
         </div>
+      </div>
+
+      <h3 style={{ fontSize: 14, marginTop: 20 }}>Steam 登录 Cookie（强烈建议）</h3>
+      <div className="field">
+        <label>Cookie {settings.steamCookieSet ? "（已配置）" : "（未配置，价格按美元+汇率换算）"}</label>
+        <input
+          type="text"
+          value={form.steamCookie}
+          placeholder="steamLoginSecure=xxxx; sessionid=yyyy"
+          onChange={(e) => setForm({ ...form, steamCookie: e.target.value })}
+        />
+        <span className="hint">
+          配置后价格直接是你 Steam 账号的真实币种价格（如港币），无需汇率换算；求购数据也有望获取。
+          获取方法：浏览器登录 Steam → 打开 steamcommunity.com → 按 F12 → 上方选
+          "Application/应用" 标签 → 左侧 Cookies → steamcommunity.com →
+          找到 <b>steamLoginSecure</b> 和 <b>sessionid</b> 两行，把"值"按
+          steamLoginSecure=值; sessionid=值 的格式拼起来粘贴到这里（留空则保持不变）
+        </span>
       </div>
 
       <h3 style={{ fontSize: 14, marginTop: 20 }}>安全</h3>

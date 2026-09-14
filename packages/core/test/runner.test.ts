@@ -37,6 +37,7 @@ const SETTINGS: Settings = {
   quietHoursStart: null,
   quietHoursEnd: null,
   currency: "CNY",
+  steamCookie: "",
 };
 
 function snapAt(sellCount: number, sellPrice: number, at: number): ItemSnapshot {
