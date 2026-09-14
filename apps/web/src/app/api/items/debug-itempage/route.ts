@@ -46,10 +46,10 @@ export async function GET(req: NextRequest) {
       nameidOccurrences: (html.match(/nameid/gi) ?? []).length,
       buyOrderOccurrences: (html.match(/buy_order/gi) ?? []).length,
       ordersOccurrences: (html.match(/orders/gi) ?? []).length,
-      zhQiuGouOccurrences: (html.match(/求购/g) ?? []).length,
+      dingGouOccurrences: (html.match(/订购/g) ?? []).length,
       listingRowOccurrences: (html.match(/listing_\d+/g) ?? []).length,
-      zhHits: (html.match(/.{80}求购.{80}/g) ?? []).slice(0, 3),
-      ordersHits: (html.match(/.{80}orders.{80}/gi) ?? []).slice(0, 5),
+      dingGouHits: (html.match(/.{120}订购.{200}/g) ?? []).slice(0, 4),
+      ordersHits: (html.match(/.{120}orders.{200}/gi) ?? []).slice(0, 5),
     };
   } catch (e) {
     out.page = { error: e instanceof Error ? e.message : String(e) };
