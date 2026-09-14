@@ -1,0 +1,32 @@
+{
+  "name": "steam-market-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Steam 市场商品监控（永劫无间谪星 / 通用自定义）+ 企业微信推送",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @steam-monitor/web dev",
+    "build": "pnpm --filter @steam-monitor/web build",
+    "test": "pnpm --filter @steam-monitor/core test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "worker": "pnpm --filter @steam-monitor/worker start",
+    "worker:once": "pnpm --filter @steam-monitor/worker start:once",
+    "smoke": "pnpm --filter @steam-monitor/worker smoke"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "eslint": "^9.12.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.8.1"
+  }
+}

@@ -1,0 +1,44 @@
+import { randomUUID } from "node:crypto";
+
+export function genId(): string {
+  return randomUUID();
+}
+
+export function nowTs(): number {
+  return Date.now();
+}
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** 千分位、两位小数的价格显示 */
+export function fmtPrice(n: number): string {
+  return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const DEFAULT_TIME_ZONE = process.env.TZ || "Asia/Shanghai";
+
+/** 服务器时间按目标时区格式化（默认 Asia/Shanghai） */
+export function fmtTime(ts: number): string {
+  const s = new Date(ts).toLocaleString("zh-CN", { timeZone: DEFAULT_TIME_ZONE, hour12: false });
+  return s.replace(/\//g, "-");
+}
+
+export function marketUrl(appId: number, marketHashName: string): string {
+  return `https://steamcommunity.com/market/listings/${appId}/${encodeURIComponent(marketHashName)}`;
+}
+
+export function errMsg(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
+
+/** 按 UTF-8 字节数截断文本（企业微信 markdown 上限 4096 字节） */
+export function truncateBytes(s: string, maxBytes: number): string {
+  const buf = Buffer.from(s, "utf8");
+  if (buf.length <= maxBytes) return s;
+  const ellipsis = Buffer.from("…", "utf8");
+  const cut = buf.subarray(0, maxBytes - ellipsis.length);
+  return cut.toString("utf8") + "…";
+}

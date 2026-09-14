@@ -1,0 +1,20 @@
+{
+  "name": "@steam-monitor/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test --test-isolation=none test/parse.test.ts test/engine.test.ts test/notifier.test.ts test/runner.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "undici": "^6.19.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.3"
+  }
+}

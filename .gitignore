@@ -1,0 +1,26 @@
+# dependencies / build artifacts
+node_modules/
+.pnpm-store/
+.next/
+.vercel/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# local toolchain & caches（工作区内自带的 pnpm）
+.toolchain/
+.npm-cache/
+
+# local runtime data（本地模式的数据库文件）
+data/
+
+# env & secrets
+.env
+.env.local
+.env.*.local
+
+# misc
+.tmp/
+.DS_Store
+*.log
