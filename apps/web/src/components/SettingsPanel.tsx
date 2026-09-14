@@ -95,7 +95,10 @@ export function SettingsPanel({ settings, onSaved, health }: Props) {
           placeholder={settings.webhookKeySet ? "留空保持不变；输入新值则覆盖" : "群机器人 webhook 地址中 key= 后面的部分"}
           onChange={(e) => setForm({ ...form, webhookKey: e.target.value })}
         />
-        <span className="hint">创建方式见 README/部署文档：群聊 → 添加群机器人 → 复制 Webhook 地址中的 key</span>
+        <span className="hint">
+          创建方式：群聊 → 添加群机器人 → 复制 Webhook 地址中 key= 后面的部分粘贴到这里
+          （也可以直接粘贴整个 webhook 地址，会自动提取）。报错 93000 = key 不正确
+        </span>
       </div>
       <div className="flex mt8">
         <button className="btn primary" onClick={() => testNotify()} disabled={testing}>

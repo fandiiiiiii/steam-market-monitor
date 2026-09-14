@@ -17,6 +17,17 @@ export function fmtPrice(n: number): string {
   return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/**
+ * 规范化企业微信 webhook key：
+ * 用户可能粘贴完整地址（.../webhook/send?key=xxxx）或只粘贴 key，这里统一提取 key 部分。
+ */
+export function normalizeWebhookKey(input: string): string {
+  const s = input.trim();
+  const m = s.match(/key=([0-9a-zA-Z\-]{20,})/);
+  if (m) return m[1];
+  return s;
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   CNY: "¥",
   HKD: "HK$",

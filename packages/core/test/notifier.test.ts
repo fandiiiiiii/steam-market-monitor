@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Notifier } from "../src/index.ts";
+import { normalizeWebhookKey, Notifier } from "../src/index.ts";
 
 function jsonRes(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,6 +21,19 @@ function makeFetch(impl: Array<() => Promise<Response>>) {
   };
   return { fetchImpl, calls };
 }
+
+describe("normalizeWebhookKey", () => {
+  it("从完整地址提取 key", () => {
+    assert.equal(
+      normalizeWebhookKey("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=abc-123-xyz"),
+      "abc-123-xyz",
+    );
+  });
+  it("纯 key 原样返回", () => {
+    assert.equal(normalizeWebhookKey("abc-123-xyz"), "abc-123-xyz");
+    assert.equal(normalizeWebhookKey("  abc-123-xyz  "), "abc-123-xyz");
+  });
+});
 
 describe("Notifier", () => {
   it("发送 markdown 消息成功", async () => {

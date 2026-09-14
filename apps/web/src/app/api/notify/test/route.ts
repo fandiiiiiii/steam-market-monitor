@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminAuthorized } from "@/lib/auth";
 import { notifier, store } from "@/lib/singletons";
-import { buildItemMessage, errMsg, type DetectEvent, type MonitorItem } from "@steam-monitor/core";
+import { buildItemMessage, errMsg, normalizeWebhookKey, type DetectEvent, type MonitorItem } from "@steam-monitor/core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +23,8 @@ export async function POST(req: NextRequest) {
     // 允许无请求体
   }
   const settings = await store.getSettings();
-  const key = (typeof body?.key === "string" && body.key.trim()) || settings.webhookKey;
+  const rawKey = (typeof body?.key === "string" && body.key.trim()) || settings.webhookKey;
+  const key = normalizeWebhookKey(rawKey);
   if (!key) return NextResponse.json({ error: "尚未配置企业微信 webhook key" }, { status: 400 });
   try {
     if (body?.mode === "event") {

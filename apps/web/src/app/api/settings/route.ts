@@ -1,4 +1,4 @@
-import { type Settings } from "@steam-monitor/core";
+import { type Settings, normalizeWebhookKey } from "@steam-monitor/core";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminAuthorized } from "@/lib/auth";
 import { ensureDefaults, store } from "@/lib/singletons";
@@ -68,9 +68,9 @@ export async function PUT(req: NextRequest) {
     if (cookie.length > 4096) return NextResponse.json({ error: "Cookie 过长" }, { status: 400 });
     next.steamCookie = cookie;
   }
-  // webhookKey：留空表示不修改；传值则覆盖
+  // webhookKey：留空表示不修改；传值则覆盖（支持粘贴完整 webhook 地址，自动提取 key）
   if (typeof body?.webhookKey === "string" && body.webhookKey.trim()) {
-    const key = body.webhookKey.trim();
+    const key = normalizeWebhookKey(body.webhookKey);
     if (key.length > 200) return NextResponse.json({ error: "webhook key 过长" }, { status: 400 });
     next.webhookKey = key;
   }
