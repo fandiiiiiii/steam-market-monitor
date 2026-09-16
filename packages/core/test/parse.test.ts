@@ -124,6 +124,14 @@ describe("parseItemPageOrders（物品页内嵌订单数据）", () => {
     assert.equal(o!.highestBuy, 5984.1);
   });
 
+  it("以订购列表第一条为准（amt 汇总字段可能滞后）", () => {
+    const html = `<script>{"state":{"data":{"amtMaxBuyOrder":1346486,"amtMinSellOrder":700000,"eCurrency":23,"cBuyOrders":2,"cSellOrders":1,"rgCompactBuyOrders":[1355809,1,1346486,1],"rgCompactSellOrders":[700000,1]}}}</script>`;
+    const o = parseItemPageOrders(html);
+    assert.ok(o);
+    assert.equal(o!.highestBuy, 13558.09);
+    assert.equal(o!.buyOrders[0].price, 13558.09);
+  });
+
   it("无数据时返回 null", () => {
     assert.equal(parseItemPageOrders("<html>nothing</html>"), null);
   });

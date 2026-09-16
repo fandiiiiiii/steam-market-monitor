@@ -70,9 +70,11 @@ export function parseItemPageOrders(html: string): ItemPageOrders | null {
   return {
     buyCount,
     sellCount,
-    // 零在售/零订购时，页面里的 amt 值是占位符（如 23 分），必须置空
-    highestBuy: buyCount > 0 && amtMax != null ? amtMax / 100 : null,
-    lowestSell: sellCount > 0 && amtMin != null ? amtMin / 100 : null,
+    // 市场页显示的是"订购/出售列表第一条"（最新最准），优先取它；amt 汇总字段可能滞后，仅作回退
+    highestBuy:
+      buyOrders.length > 0 ? buyOrders[0].price : buyCount > 0 && amtMax != null ? amtMax / 100 : null,
+    lowestSell:
+      sellOrders.length > 0 ? sellOrders[0].price : sellCount > 0 && amtMin != null ? amtMin / 100 : null,
     currency: cur ?? 23,
     buyOrders,
     sellOrders,
